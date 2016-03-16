@@ -1,7 +1,6 @@
-# tensorflow-vgg
-Tensorflow implementation of VGG 16 and VGG 19
+# Tensorflow VGG16 and VGG19
 
-This is a implemention of VGG 16 and VGG 19 based on <a href="https://github.com/ry/tensorflow-vgg16">tensorflow-vgg16</a> and <a href="https://github.com/ethereon/caffe-tensorflow">Caffe to Tensorflow</a>.
+This is a implemention of VGG 16 and VGG 19 based on [tensorflow-vgg16](https://github.com/ry/tensorflow-vgg16) and [Caffe to Tensorflow](https://github.com/ethereon/caffe-tensorflow). Original Caffe implementation can be found in [here](https://gist.github.com/ksimonyan/211839e770f7b538e2d8) and [here](https://gist.github.com/ksimonyan/3785162f95cd2d5fee77).
 
 We have modified the implementation of <a href="https://github.com/ry/tensorflow-vgg16">tensorflow-vgg16</a> to use numpy loading instead of default tensorflow model loading in order to speed up the initialisation and reduct overall memory usage. This implementation enable further modify the network, e.g. remove the FC layers, or increase the batch size.
 
