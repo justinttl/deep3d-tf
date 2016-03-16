@@ -17,8 +17,9 @@ or
 vgg = vgg16.Vgg16()
 vgg.build(images)
 ```
-The images is a tensor with shape `[2, 224, 224, 3]`. (Trick: the tensor can be a placeholder, a variable or even a constant).
+The `images` is a tensor with shape `[2, 224, 224, 3]`. 
+>Trick: the tensor can be a placeholder, a variable or even a constant.
 
-All the VGG layers, as tensors, can then be accessed using the vgg object. For example, `vgg.conv1_1`, `vgg.conv1_2`, `vgg.pool5`, `vgg.prob`, ...
+All the VGG layers (tensors) can then be accessed using the vgg object. For example, `vgg.conv1_1`, `vgg.conv1_2`, `vgg.pool5`, `vgg.prob`, ...
 
 `test_vgg16.py` and `test_vgg19.py` contain the sample usage.
