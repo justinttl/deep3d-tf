@@ -6,7 +6,7 @@ We have modified the implementation of <a href="https://github.com/ry/tensorflow
 
 To use the VGG networks, the npy files for <a href="https://dl.dropboxusercontent.com/u/50333326/vgg16.npy">VGG16</a> or <a href="https://dl.dropboxusercontent.com/u/50333326/vgg19.npy">VGG19</a> has to be downloaded.
 
-#Usage
+##Usage
 Use this to build the VGG object
 ```
 vgg = vgg19.Vgg19()
@@ -17,7 +17,7 @@ or
 vgg = vgg16.Vgg16()
 vgg.build(images)
 ```
-The `images` is a tensor with shape `[2, 224, 224, 3]`. 
+The `images` is a tensor with shape `[None, 224, 224, 3]`. 
 >Trick: the tensor can be a placeholder, a variable or even a constant.
 
 All the VGG layers (tensors) can then be accessed using the vgg object. For example, `vgg.conv1_1`, `vgg.conv1_2`, `vgg.pool5`, `vgg.prob`, ...
