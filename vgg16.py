@@ -15,11 +15,11 @@ class Vgg16:
             path = os.path.abspath(os.path.join(path, os.pardir))
             # print path
             path = os.path.join(path, "vgg16.npy")
-            print path
+            print(path)
             vgg16_npy_path = path
 
-        self.data_dict = np.load(vgg16_npy_path).item()
-        print "npy file loaded"
+        self.data_dict = np.load(vgg16_npy_path, encoding='latin1').item()
+        print("npy file loaded")
 
     def build(self, rgb, train=False):
         rgb_scaled = rgb * 255.0
