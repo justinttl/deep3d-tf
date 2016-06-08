@@ -12,7 +12,8 @@ batch2 = img2.reshape((1, 224, 224, 3))
 
 batch = np.concatenate((batch1, batch2), 0)
 
-with tf.Session() as sess:
+with tf.Session(
+        config=tf.ConfigProto(gpu_options=(tf.GPUOptions(per_process_gpu_memory_fraction=0.7)))) as sess:
     images = tf.placeholder("float", [2, 224, 224, 3])
     feed_dict = {images: batch}
 
