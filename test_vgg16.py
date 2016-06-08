@@ -22,6 +22,6 @@ with tf.Session(
         vgg.build(images)
 
     prob = sess.run(vgg.prob, feed_dict=feed_dict)
-    print prob
+    print(prob)
     utils.print_prob(prob[0], './synset.txt')
     utils.print_prob(prob[1], './synset.txt')
