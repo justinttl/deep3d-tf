@@ -3,6 +3,7 @@ import os
 
 import numpy as np
 import tensorflow as tf
+import time
 
 VGG_MEAN = [103.939, 116.779, 123.68]
 
@@ -19,7 +20,15 @@ class Vgg16:
         self.data_dict = np.load(vgg16_npy_path, encoding='latin1').item()
         print("npy file loaded")
 
-    def build(self, rgb, train=False):
+    def build(self, rgb):
+        """
+        load variable from npy to build the VGG
+
+        :param rgb: rgb image [batch, height, width, 3] values scaled [0, 1]
+        """
+
+        start_time = time.time()
+        print("build model started")
         rgb_scaled = rgb * 255.0
 
         # Convert RGB to BGR
@@ -59,30 +68,28 @@ class Vgg16:
 
         self.fc6 = self.fc_layer(self.pool5, "fc6")
         assert self.fc6.get_shape().as_list()[1:] == [4096]
-
         self.relu6 = tf.nn.relu(self.fc6)
-        if train:
-            self.relu6 = tf.nn.dropout(self.relu6, 0.5)
 
         self.fc7 = self.fc_layer(self.relu6, "fc7")
         self.relu7 = tf.nn.relu(self.fc7)
-        if train:
-            self.relu7 = tf.nn.dropout(self.relu7, 0.5)
 
         self.fc8 = self.fc_layer(self.relu7, "fc8")
+
         self.prob = tf.nn.softmax(self.fc8, name="prob")
 
+        self.data_dict = None
+        print("build model finished: %ds" % (time.time() - start_time))
+
     def avg_pool(self, bottom, name):
-        return tf.nn.avg_pool(bottom, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1],
-                              padding='SAME', name=name)
+        return tf.nn.avg_pool(bottom, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME', name=name)
 
     def max_pool(self, bottom, name):
-        return tf.nn.max_pool(bottom, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1],
-                              padding='SAME', name=name)
+        return tf.nn.max_pool(bottom, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME', name=name)
 
     def conv_layer(self, bottom, name):
-        with tf.variable_scope(name) as scope:
+        with tf.variable_scope(name):
             filt = self.get_conv_filter(name)
+
             conv = tf.nn.conv2d(bottom, filt, [1, 1, 1, 1], padding='SAME')
 
             conv_biases = self.get_bias(name)
@@ -92,7 +99,7 @@ class Vgg16:
             return relu
 
     def fc_layer(self, bottom, name):
-        with tf.variable_scope(name) as scope:
+        with tf.variable_scope(name):
             shape = bottom.get_shape().as_list()
             dim = 1
             for d in shape[1:]:

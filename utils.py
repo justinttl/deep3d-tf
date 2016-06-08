@@ -30,7 +30,6 @@ def print_prob(prob, file_path):
     synset = [l.strip() for l in open(file_path).readlines()]
 
     # print prob
-    print("prob shape", prob.shape)
     pred = np.argsort(prob)[::-1]
 
     # Get top1 label

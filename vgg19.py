@@ -1,5 +1,4 @@
 import os
-import sys
 import tensorflow as tf
 
 import numpy as np
@@ -21,24 +20,28 @@ class Vgg19:
         self.data_dict = np.load(vgg19_npy_path, encoding='latin1').item()
         print("npy file loaded")
 
-    # Input should be an rgb image [batch, height, width, 3]
-    # values scaled [0, 1]
-    def build(self, rgb, train=False):
+    def build(self, rgb):
+        """
+        load variable from npy to build the VGG
+
+        :param rgb: rgb image [batch, height, width, 3] values scaled [0, 1]
+        """
+
         start_time = time.time()
         print("build model started")
         rgb_scaled = rgb * 255.0
 
         # Convert RGB to BGR
         red, green, blue = tf.split(3, 3, rgb_scaled)
-        # assert red.get_shape().as_list()[1:] == [224, 224, 1]
-        # assert green.get_shape().as_list()[1:] == [224, 224, 1]
-        # assert blue.get_shape().as_list()[1:] == [224, 224, 1]
+        assert red.get_shape().as_list()[1:] == [224, 224, 1]
+        assert green.get_shape().as_list()[1:] == [224, 224, 1]
+        assert blue.get_shape().as_list()[1:] == [224, 224, 1]
         bgr = tf.concat(3, [
             blue - VGG_MEAN[0],
             green - VGG_MEAN[1],
             red - VGG_MEAN[2],
         ])
-        # assert bgr.get_shape().as_list()[1:] == [224, 224, 3]
+        assert bgr.get_shape().as_list()[1:] == [224, 224, 3]
 
         self.conv1_1 = self.conv_layer(bgr, "conv1_1")
         self.conv1_2 = self.conv_layer(self.conv1_1, "conv1_2")
@@ -69,13 +72,9 @@ class Vgg19:
         self.fc6 = self.fc_layer(self.pool5, "fc6")
         assert self.fc6.get_shape().as_list()[1:] == [4096]
         self.relu6 = tf.nn.relu(self.fc6)
-        if train:
-            self.relu6 = tf.nn.dropout(self.relu6, 0.5)
 
         self.fc7 = self.fc_layer(self.relu6, "fc7")
         self.relu7 = tf.nn.relu(self.fc7)
-        if train:
-            self.relu7 = tf.nn.dropout(self.relu7, 0.5)
 
         self.fc8 = self.fc_layer(self.relu7, "fc8")
 
@@ -85,15 +84,13 @@ class Vgg19:
         print("build model finished: %ds" % (time.time() - start_time))
 
     def avg_pool(self, bottom, name):
-        return tf.nn.avg_pool(bottom, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1],
-                              padding='SAME', name=name)
+        return tf.nn.avg_pool(bottom, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME', name=name)
 
     def max_pool(self, bottom, name):
-        return tf.nn.max_pool(bottom, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1],
-                              padding='SAME', name=name)
+        return tf.nn.max_pool(bottom, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME', name=name)
 
     def conv_layer(self, bottom, name):
-        with tf.variable_scope(name) as scope:
+        with tf.variable_scope(name):
             filt = self.get_conv_filter(name)
 
             conv = tf.nn.conv2d(bottom, filt, [1, 1, 1, 1], padding='SAME')
@@ -105,7 +102,7 @@ class Vgg19:
             return relu
 
     def fc_layer(self, bottom, name):
-        with tf.variable_scope(name) as scope:
+        with tf.variable_scope(name):
             shape = bottom.get_shape().as_list()
             dim = 1
             for d in shape[1:]:
