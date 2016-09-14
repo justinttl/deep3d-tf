@@ -32,3 +32,5 @@ This library has been used in my another Tensorflow image style synethesis proje
 Added a trainable version of the VGG19 `vgg19_trainable`. It support train from existing vaiables or from scratch. (But. the trainer is not included)
 
 A very simple testing is added `test_vgg19_trainable`, switch has demo about how to train, switch off train mode for verification, and how to save.
+
+A seperated file is added (instead of changing existing one) because I want to keep the simplicity of the original VGG networks.
