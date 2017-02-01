@@ -15,7 +15,7 @@ class Vgg19:
             path = os.path.abspath(os.path.join(path, os.pardir))
             path = os.path.join(path, "vgg19.npy")
             vgg19_npy_path = path
-            print vgg19_npy_path
+            print(vgg19_npy_path)
 
         self.data_dict = np.load(vgg19_npy_path, encoding='latin1').item()
         print("npy file loaded")
