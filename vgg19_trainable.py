@@ -1,9 +1,7 @@
-import os
 import tensorflow as tf
 
 import numpy as np
-import time
-import inspect
+from functools import reduce
 
 VGG_MEAN = [103.939, 116.779, 123.68]
 
@@ -33,11 +31,11 @@ class Vgg19:
         rgb_scaled = rgb * 255.0
 
         # Convert RGB to BGR
-        red, green, blue = tf.split(3, 3, rgb_scaled)
+        red, green, blue = tf.split(axis=3, num_or_size_splits=3, value=rgb_scaled)
         assert red.get_shape().as_list()[1:] == [224, 224, 1]
         assert green.get_shape().as_list()[1:] == [224, 224, 1]
         assert blue.get_shape().as_list()[1:] == [224, 224, 1]
-        bgr = tf.concat(3, [
+        bgr = tf.concat(axis=3, values=[
             blue - VGG_MEAN[0],
             green - VGG_MEAN[1],
             red - VGG_MEAN[2],
@@ -70,7 +68,7 @@ class Vgg19:
         self.conv5_4 = self.conv_layer(self.conv5_3, 512, 512, "conv5_4")
         self.pool5 = self.max_pool(self.conv5_4, 'pool5')
 
-        self.fc6 = self.fc_layer(self.pool5, 25088, 4096, "fc6")  # 25088 = ((224 / (2 ** 5)) ** 2) * 512
+        self.fc6 = self.fc_layer(self.pool5, 25088, 4096, "fc6")  # 25088 = ((224 // (2 ** 5)) ** 2) * 512
         self.relu6 = tf.nn.relu(self.fc6)
         if train_mode is not None:
             self.relu6 = tf.cond(train_mode, lambda: tf.nn.dropout(self.relu6, 0.5), lambda: self.relu6)
@@ -156,18 +154,18 @@ class Vgg19:
 
         data_dict = {}
 
-        for (name, idx), var in self.var_dict.items():
+        for (name, idx), var in list(self.var_dict.items()):
             var_out = sess.run(var)
-            if not data_dict.has_key(name):
+            if name not in data_dict:
                 data_dict[name] = {}
             data_dict[name][idx] = var_out
 
         np.save(npy_path, data_dict)
-        print("file saved", npy_path)
+        print(("file saved", npy_path))
         return npy_path
 
     def get_var_count(self):
         count = 0
-        for v in self.var_dict.values():
+        for v in list(self.var_dict.values()):
             count += reduce(lambda x, y: x * y, v.get_shape().as_list())
         return count

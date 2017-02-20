@@ -4,11 +4,11 @@ Simple tester for the vgg19_trainable
 
 import tensorflow as tf
 
-import vgg19_trainable as vgg19
-import utils
+from tensoflow_vgg import vgg19_trainable as vgg19
+from tensoflow_vgg import utils
 
 img1 = utils.load_image("./test_data/tiger.jpeg")
-img1_true_result = [1 if i == 292 else 0 for i in xrange(1000)]  # 1-hot result for tiger
+img1_true_result = [1 if i == 292 else 0 for i in range(1000)]  # 1-hot result for tiger
 
 batch1 = img1.reshape((1, 224, 224, 3))
 
@@ -23,9 +23,9 @@ with tf.device('/cpu:0'):
     vgg.build(images, train_mode)
 
     # print number of variables used: 143667240 variables, i.e. ideal size = 548MB
-    print vgg.get_var_count()
+    print(vgg.get_var_count())
 
-    sess.run(tf.initialize_all_variables())
+    sess.run(tf.global_variables_initializer())
 
     # test classification
     prob = sess.run(vgg.prob, feed_dict={images: batch1, train_mode: False})

@@ -34,10 +34,10 @@ def print_prob(prob, file_path):
 
     # Get top1 label
     top1 = synset[pred[0]]
-    print("Top1: ", top1, prob[pred[0]])
+    print(("Top1: ", top1, prob[pred[0]]))
     # Get top5 label
     top5 = [(synset[pred[i]], prob[pred[i]]) for i in range(5)]
-    print("Top5: ", top5)
+    print(("Top5: ", top5))
     return top1
 
 
