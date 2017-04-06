@@ -98,7 +98,9 @@ def load_inria_frame(dims = (180,320)):
 
 	# Calculate Total Frames
 	count = 0 
+	ds_count = 0
 	tot_count = 0 
+
 	for root, dirs, files in os.walk(dir_name, topdown=False):
 		for file in files:
 			if file.endswith(l_ext): 
@@ -125,26 +127,45 @@ def load_inria_frame(dims = (180,320)):
 				if count % 250 == 0 and count != 0:
 					print  "(" + str(count) + "/" + str(tot_count) + ")"
 
+				if count % 1000 == 0 and count != 0:
+					write_to_disk(X,Y, "inria_data.h5", str(ds_count))
+					ds_count = ds_count + 1
+					del X
+					del Y
+					X = np.zeros(dimensions)
+					Y = np.zeros(dimensions)
 
-	return X, Y
+	write_to_disk(X,Y, "inria_data.h5", str(ds_count))
+	return
+
+
+def write_to_disk(X, Y, f_name, ds_ext):
+	print "Writing " + "X_/Y_" + ds_ext + " to " + f_name
+	h5f = h5py.File(f_name, 'a')
+	h5f.create_dataset('X_'+ds_ext, data=X)
+	h5f.create_dataset('Y_'+ds_ext, data=Y)
+	h5f.close()
+	print "Write Complete"
 
 
 def main():
+	import time
+	start = time.time()
+
 	if os.path.exists('inria_data.h5'):
-		print "Inria data already stored in h5 format"
+		print "Some inria data already stored in h5 format"
 		return
 
-	download_inria()
-	extract_tar()
-	X, Y = load_inria_frame()
+	if os.path.exists('inria_stereo_dataset/'):
+		print "Inria data already downloaded. Using cached files"
+	else: 
+		download_inria()
+		extract_tar()
 
-	print "Writing to Disk in h5 Format."
-	h5f = h5py.File('inria_data.h5', 'w')
-	h5f.create_dataset('X', data=X)
-	h5f.create_dataset('Y', data=Y)
-	h5f.close()
+	load_inria_frame()
 
-	print "Inria3D data has been downloaded, processed and stored"
+	end = time.time()
+	print "Extraction Completed... Took " + str((end - start)/60) + " minutes"
 
 if __name__ == "__main__":
 	main()
