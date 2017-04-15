@@ -2,6 +2,7 @@ import tensorflow as tf
 
 import numpy as np
 from functools import reduce
+import os.path
 
 VGG_MEAN = [103.939, 116.779, 123.68]
 
@@ -11,15 +12,18 @@ class Deep3Dnet:
     A trainable version deep3dnet.
     """
 
-    def __init__(self, vgg19_npy_path=None, trainable=True, dropout=0.5):
-        if vgg19_npy_path is not None:
-            self.data_dict = np.load(vgg19_npy_path, encoding='latin1').item()
+    def __init__(self, deep3d_path=None, trainable=True, dropout=0.5):
+        if deep3d_path is not None:
+            if os.path.isfile(deep3d_path):
+                self.data_dict = np.load(vgg19_npy_path, encoding='latin1').item()
             
-            #removing pre-trained weights for fully connected layers so they'll be re-initialized 
-            del self.data_dict[u'fc6']
-            del self.data_dict[u'fc7']
-            del self.data_dict[u'fc8']
+                #removing pre-trained weights for fully connected layers so they'll be re-initialized
+                del self.data_dict[u'fc6']
+                del self.data_dict[u'fc7']
+                del self.data_dict[u'fc8']
             
+            else:
+                self.data_dict = None
         else:
             self.data_dict = None
 
@@ -81,7 +85,7 @@ class Deep3Dnet:
         
 
 
-        self.fc6 = self.fc_layer(self.pool5, 28800, 4096, "fc6") #28800=((180//(2**5))**(320//(2**5)))*512
+        self.fc6 = self.fc_layer(self.pool5, 28800, 4096, "fc6") #28800=((180//(2**5))*(320//(2**5)))*512
         self.relu6 = tf.nn.relu(self.fc6)
         if train_mode and self.trainable:
             self.relu6 = tf.nn.dropout(self.relu6, self.dropout)
@@ -99,9 +103,9 @@ class Deep3Dnet:
         #this is is resizing the output of the fully connected layers
         self.pred5 = tf.reshape(self.fc8,[-1,33,5,12])
         self.pred5 = tf.nn.relu(self.pred5)
-        self.pred5 = self.deconv_layer(self.pred5,33,33,scale,bias=0,'pred5_deconv_2')
+        self.pred5 = self.deconv_layer(self.pred5,33,33,scale,0,'pred5_deconv_2')
         self.feat_act = tf.nn.relu(self.pred5)
-        self.up = self.deconv_layer(self.pred5,33,33,scale,bias=0,'up_deconv_2')
+        self.up = self.deconv_layer(self.pred5,33,33,scale,0,'up_deconv_2')
         self.up = tf.nn.relu(self.up)
         self.up = self.conv_layer(self.up, 33, 33, "up_conv_1")
         
