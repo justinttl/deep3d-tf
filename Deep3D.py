@@ -41,15 +41,15 @@ class Deep3Dnet:
 
         # Convert RGB to BGR
         red, green, blue = tf.split(axis=3, num_or_size_splits=3, value=rgb_scaled)
-        assert red.get_shape().as_list()[1:] == [224, 224, 1]
-        assert green.get_shape().as_list()[1:] == [224, 224, 1]
-        assert blue.get_shape().as_list()[1:] == [224, 224, 1]
+        assert red.get_shape().as_list()[1:] == [180, 320, 1]
+        assert green.get_shape().as_list()[1:] == [180, 320, 1]
+        assert blue.get_shape().as_list()[1:] == [180, 320, 1]
         bgr = tf.concat(axis=3, values=[
             blue - VGG_MEAN[0],
             green - VGG_MEAN[1],
             red - VGG_MEAN[2],
         ])
-        assert bgr.get_shape().as_list()[1:] == [224, 224, 3]
+        assert bgr.get_shape().as_list()[1:] == [180, 320, 3]
         
         #def conv_layer(self, bottom, in_channels, out_channels, name):
         self.conv1_1 = self.conv_layer(bgr, 3, 64, "conv1_1")
@@ -79,8 +79,9 @@ class Deep3Dnet:
         self.pool5 = self.max_pool(self.conv5_4, 'pool5')
         
         
-        
-        self.fc6 = self.fc_layer(self.pool5, 25088, 4096, "fc6")  # 25088 = ((224 // (2 ** 5)) ** 2) * 512
+
+
+        self.fc6 = self.fc_layer(self.pool5, 28800, 4096, "fc6") #28800=((180//(2**5))**(320//(2**5)))*512
         self.relu6 = tf.nn.relu(self.fc6)
         if train_mode and self.trainable:
             self.relu6 = tf.nn.dropout(self.relu6, self.dropout)
@@ -90,25 +91,47 @@ class Deep3Dnet:
         if train_mode and self.trainable:
             self.relu7 = tf.nn.dropout(self.relu7, self.dropout)
 
+        
         self.fc8 = self.fc_layer(self.relu7, 4096, 33*12*5, "fc8")
-
+        
+        
+        scale = 16
+        #this is is resizing the output of the fully connected layers
+        self.pred5 = tf.reshape(self.fc8,[-1,33,5,12])
+        self.pred5 = tf.nn.relu(self.pred5)
+        self.pred5 = self.deconv_layer(self.pred5,33,33,scale,bias=0,'pred5_deconv_2')
+        self.feat_act = tf.nn.relu(self.pred5)
+        self.up = self.deconv_layer(self.pred5,33,33,scale,bias=0,'up_deconv_2')
+        self.up = tf.nn.relu(self.up)
+        self.up = self.conv_layer(self.up, 33, 33, "up_conv_1")
+        
         self.data_dict = None
         
-        
-        scale = 1
-        #this is is resizing the output of the fully connected layers
-        self.branch5 = tf.reshape(self.fc8,[-1,33,5,12])
+   
+        """
+        # MXNET code
+        fc8 = mx.symbol.FullyConnected(data=drop7, num_hidden=33*12*5, name="pred5")
+        pred5 = mx.symbol.Reshape(data=fc8, target_shape=(0, 33, 5, 12))
+        pred5 = mx.symbol.Activation(data=pred5, act_type='relu')
+        pred5 = mx.symbol.Deconvolution(data=pred5, kernel=(2*scale, 2*scale), stride=(scale, scale), pad=(scale/2, scale/2), num_filter=33, no_bias=no_bias, workspace=workspace, name='deconv_pred5')
+        feat = mx.symbol.ElementWiseSum(pred1, pred2, pred3, pred4, pred5)
+        feat_act = mx.symbol.Activation(data=feat, act_type='relu', name='feat_relu')
+        up = mx.symbol.Deconvolution(data=feat_act, kernel=(2*scale, 2*scale), stride=(scale, scale), pad=(scale/2, scale/2), num_filter=33, no_bias=no_bias, workspace=workspace, name='deconv_predup')
+        up = mx.symbol.Activation(data=up, act_type='relu')
+        up = mx.symbol.Convolution(data=up, kernel=(3,3), pad=(1,1), num_filter=33)                                       
+                                          
+                                      
+                                           
         
         #this section includes the branches off the main VGGnet, applying batchnorm and then a convolution
-        
+      
         #self.branch4_1 = self.batch_norm(self.pool4,train_mode,"branch4_1")
-        self.branch4_1 = tf.contrib.layers.batch_norm(bottom, scale=True, is_training=phase, scope='bn')
-        self.branch4_2 = self.conv_layer(self.branch4_1,512,33,"branch4_2")
-        self.branch4_3 = tf.nn.relu(self.branch4_2)
+        self.branch4_2 = tf.contrib.layers.batch_norm(bottom, scale=True, is_training=phase, scope='bn')
+        self.branch4_3 = self.conv_layer(self.branch4_1,512,33,"branch4_2")
+        self.branch4_4 = tf.nn.relu(self.branch4_2)
         
-        self.branch4_4 = self.deconv_layer(slef.branch4_3,
+        self.branch4_5 = self.deconv_layer(self.branch4_3,
 
-        """mx.symbol.Deconvolution(data=pred1, kernel=(1, 1), stride=(1, 1), pad=(0, 0), num_filter=33, no_bias=no_bias, workspace=workspace, name='deconv_pred1')"""
         scale *= 2
         
         self.branch3_1 = self.batch_norm(self.pool3,train_mode,"branch3_1")
@@ -148,14 +171,15 @@ class Deep3Dnet:
         up = mx.symbol.Deconvolution(data=feat_act, kernel=(2*scale, 2*scale), stride=(scale, scale), pad=(scale/2, scale/2), num_filter=33, no_bias=no_bias, workspace=workspace, name='deconv_predup')
         up = mx.symbol.Activation(data=up, act_type='relu')
         up = mx.symbol.Convolution(data=up, kernel=(3,3), pad=(1,1), num_filter=33)
-"""        
+    
+    
     def batch_norm(self, bottom, phase, name):        
         with tf.variable_scope(name):
             gamma, beta = self.get_bn_var(bottom,name)
             
                                          
             return tf.contrib.layers.batch_norm(bottom, center=True, scale=True, is_training=phase, scope='bn')
-"""
+    """
     def get_bn_var(self,bottom,name):
         initial_value = tf.truncated_normal([in_size, out_size], 0.0, 0.01)
         
@@ -179,13 +203,36 @@ class Deep3Dnet:
             relu = tf.nn.relu(bias)
             return relu
     
-    def deconv_layer(self, bottom, in_channels, out_channels, name):
+    def deconv_layer(self, bottom, in_channels, out_channels, scale, bias, name):
         with tf.variable_scope(name):
-            filt, conv_biases = self.get_conv_var(3, in_channels, out_channels, name)
-            conv = tf.nn.deconv2d(bottom, filt, [1, 1, 1, 1], padding='SAME')
-            bias = tf.nn.bias_add(conv, conv_biases)
-            relu = tf.nn.relu(bias)
-            return relu
+            filt, deconv_biases = self.get_conv_var(2*scale, in_channels, out_channels, bias, name)
+            #def conv2d_transpose(value, filter, output_shape, strides, padding="SAME", data_format="NHWC", name=None)
+            deconv = tf.nn.conv2d_transpose(bottom, filt, output_shape, [1,1,scale,scale],data_format='NCHW')
+            if bias:
+                bias = tf.nn.bias_add(deconv, deconv_biases)
+                relu = tf.nn.relu(bias)
+                return relu
+            else:
+                return deconv
+
+
+    def get_deconv_var(self, filter_size, in_channels, out_channels, bias, name):
+
+        #Initializing to bilinear interpolation
+        C = (2 * filter_size - 1 - (filter_size % 2))/(2*filter_size)
+        initial_value = tf.zeros([filter_size,filter_size,in_channels,out_channels])
+        for i in xrange(filter_size):
+            for j in xrange(filter_size):
+                initial_value[i, j] = (1-tf.abs(i/(filter_size - C))) * (1-tf.abs(j/(filter_size - C)))
+        filters = self.get_var(initial_value, name, 0, name + "_filters")
+
+        biases = None
+        if bias:
+            initial_value = tf.truncated_normal([out_channels], 0.0, 0.01)
+            biases = self.get_var(initial_value, name, 1, name + "_biases")
+
+
+        return filters, biases
 
     def fc_layer(self, bottom, in_size, out_size, name):
         with tf.variable_scope(name):
