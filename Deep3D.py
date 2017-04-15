@@ -77,8 +77,6 @@ class Deep3Dnet:
         self.conv5_3 = self.conv_layer(self.conv5_2, 512, 512, "conv5_3")
         self.conv5_4 = self.conv_layer(self.conv5_3, 512, 512, "conv5_4")
         self.pool5 = self.max_pool(self.conv5_4, 'pool5')
-        
-        
 
 
         self.fc6 = self.fc_layer(self.pool5, 28800, 4096, "fc6") #28800=((180//(2**5))**(320//(2**5)))*512
@@ -91,7 +89,16 @@ class Deep3Dnet:
         if train_mode and self.trainable:
             self.relu7 = tf.nn.dropout(self.relu7, self.dropout)
 
-        
+        self.fc8 = self.fc_layer(self.relu7, 4096, 1000, "fc8")
+
+        self.prob = tf.nn.softmax(self.fc8, name="prob")
+
+        self.data_dict = None
+
+
+
+
+
         self.fc8 = self.fc_layer(self.relu7, 4096, 33*12*5, "fc8")
         
         
@@ -104,11 +111,14 @@ class Deep3Dnet:
         self.up = self.deconv_layer(self.pred5,33,33,scale,bias=0,'up_deconv_2')
         self.up = tf.nn.relu(self.up)
         self.up = self.conv_layer(self.up, 33, 33, "up_conv_1")
-        
+
         self.data_dict = None
+
+        return self.up
         
-   
-        """
+
+
+        """  
         # MXNET code
         fc8 = mx.symbol.FullyConnected(data=drop7, num_hidden=33*12*5, name="pred5")
         pred5 = mx.symbol.Reshape(data=fc8, target_shape=(0, 33, 5, 12))
@@ -119,8 +129,10 @@ class Deep3Dnet:
         up = mx.symbol.Deconvolution(data=feat_act, kernel=(2*scale, 2*scale), stride=(scale, scale), pad=(scale/2, scale/2), num_filter=33, no_bias=no_bias, workspace=workspace, name='deconv_predup')
         up = mx.symbol.Activation(data=up, act_type='relu')
         up = mx.symbol.Convolution(data=up, kernel=(3,3), pad=(1,1), num_filter=33)                                       
-                                          
-                                      
+        
+        
+                                 
+        print(("build model finished: %ds" % (time.time() - start_time)))                              
                                            
         
         #this section includes the branches off the main VGGnet, applying batchnorm and then a convolution
@@ -300,3 +312,12 @@ class Deep3Dnet:
         for v in list(self.var_dict.values()):
             count += reduce(lambda x, y: x * y, v.get_shape().as_list())
         return count
+
+
+    def make_l1(scale, fuse='sum', get_softmax=False, method='multi2', upsample=1, tan=False):
+
+        left = tf.Variable(tf.float32, name='left')
+
+        left0 = tf.Variable(tf.float32, name='left0')
+
+        up, _
