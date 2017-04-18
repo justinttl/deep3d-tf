@@ -3,6 +3,7 @@ import tensorflow as tf
 import numpy as np
 from functools import reduce
 import os.path
+import selection
 
 VGG_MEAN = [103.939, 116.779, 123.68]
 
@@ -45,17 +46,17 @@ class Deep3Dnet:
 
         # Convert RGB to BGR
         red, green, blue = tf.split(axis=3, num_or_size_splits=3, value=rgb_scaled)
-        assert red.get_shape().as_list()[1:] == [180, 320, 1]
-        assert green.get_shape().as_list()[1:] == [180, 320, 1]
-        assert blue.get_shape().as_list()[1:] == [180, 320, 1]
+        assert red.get_shape().as_list()[1:] == [160, 288, 1]
+        assert green.get_shape().as_list()[1:] == [160, 288, 1]
+        assert blue.get_shape().as_list()[1:] == [160, 288, 1]
         bgr = tf.concat(axis=3, values=[
             blue - VGG_MEAN[0],
             green - VGG_MEAN[1],
             red - VGG_MEAN[2],
         ])
-        assert bgr.get_shape().as_list()[1:] == [180, 320, 3]
-        
+        assert bgr.get_shape().as_list()[1:] == [160, 288, 3]
         #def conv_layer(self, bottom, in_channels, out_channels, name):
+
         self.conv1_1 = self.conv_layer(bgr, 3, 64, "conv1_1")
         self.conv1_2 = self.conv_layer(self.conv1_1, 64, 64, "conv1_2")
         self.pool1 = self.max_pool(self.conv1_2, 'pool1')
@@ -81,35 +82,41 @@ class Deep3Dnet:
         self.conv5_3 = self.conv_layer(self.conv5_2, 512, 512, "conv5_3")
         self.conv5_4 = self.conv_layer(self.conv5_3, 512, 512, "conv5_4")
         self.pool5 = self.max_pool(self.conv5_4, 'pool5')
-        
+        print self.pool5.get_shape().as_list()
+
         
 
 
-        self.fc6 = self.fc_layer(self.pool5, 28800, 4096, "fc6") #28800=((180//(2**5))*(320//(2**5)))*512
+        self.fc6 = self.fc_layer(self.pool5, 23040, 4096, "fc6") #23040=((160//(2**5))*(288//(2**5)))*512
         self.relu6 = tf.nn.relu(self.fc6)
-        if train_mode and self.trainable:
+        if train_mode is not None and self.trainable:
             self.relu6 = tf.nn.dropout(self.relu6, self.dropout)
 
         self.fc7 = self.fc_layer(self.relu6, 4096, 4096, "fc7")
         self.relu7 = tf.nn.relu(self.fc7)
-        if train_mode and self.trainable:
+        if train_mode is not None and self.trainable:
             self.relu7 = tf.nn.dropout(self.relu7, self.dropout)
 
         
-        self.fc8 = self.fc_layer(self.relu7, 4096, 33*12*5, "fc8")
+        self.fc8 = self.fc_layer(self.relu7, 4096, 33*9*5, "fc8")
         
         
         scale = 16
         #this is is resizing the output of the fully connected layers
-        self.pred5 = tf.reshape(self.fc8,[-1,33,5,12])
+        self.pred5 = tf.reshape(self.fc8,[-1,5,9,33])
         self.pred5 = tf.nn.relu(self.pred5)
         self.pred5 = self.deconv_layer(self.pred5,33,33,scale,0,'pred5_deconv_2')
         self.feat_act = tf.nn.relu(self.pred5)
+
+
+        scale = 2
         self.up = self.deconv_layer(self.pred5,33,33,scale,0,'up_deconv_2')
         self.up = tf.nn.relu(self.up)
+        print 'conv input shape'
+        print self.up.get_shape().as_list()
         self.up = self.conv_layer(self.up, 33, 33, "up_conv_1")
         
-        self.mask = tf.softmax(self.up)
+        self.mask = tf.nn.softmax(self.up)
         
         self.prob  = selection.select(self.mask, rgb)
         
@@ -189,6 +196,18 @@ class Deep3Dnet:
                                          
             return tf.contrib.layers.batch_norm(bottom, center=True, scale=True, is_training=phase, scope='bn')
     """
+
+    """
+    pred5 = mx.symbol.Deconvolution(data=pred5, kernel=(2 * scale, 2 * scale), stride=(scale, scale),
+                                        pad=(scale / 2, scale / 2), num_filter=33, no_bias=no_bias, workspace=workspace,
+                                        name='deconv_pred5')
+
+
+    up = mx.symbol.Deconvolution(data=feat_act, kernel=(2 * scale, 2 * scale), stride=(scale, scale),
+                                     pad=(scale / 2, scale / 2), num_filter=33, no_bias=no_bias, workspace=workspace,
+                                     name='deconv_predup')
+    """
+
     def get_bn_var(self,bottom,name):
         initial_value = tf.truncated_normal([in_size, out_size], 0.0, 0.01)
         
@@ -213,10 +232,12 @@ class Deep3Dnet:
             return relu
     
     def deconv_layer(self, bottom, in_channels, out_channels, scale, bias, name):
+        N, H, W, C = bottom.get_shape().as_list()
+        shape_output = [N, scale * (H - 1) + scale * 2 - scale, scale * (W - 1) + scale * 2 - scale, out_channels]
+
         with tf.variable_scope(name):
-            filt, deconv_biases = self.get_conv_var(2*scale, in_channels, out_channels, bias, name)
-            #def conv2d_transpose(value, filter, output_shape, strides, padding="SAME", data_format="NHWC", name=None)
-            deconv = tf.nn.conv2d_transpose(bottom, filt, output_shape, [1,1,scale,scale],data_format='NCHW')
+            filt, deconv_biases = self.get_deconv_var(2*scale, in_channels, out_channels, bias, name)
+            deconv = tf.nn.conv2d_transpose(bottom, filt, shape_output, [1, scale, scale, 1])
             if bias:
                 bias = tf.nn.bias_add(deconv, deconv_biases)
                 relu = tf.nn.relu(bias)
@@ -229,10 +250,12 @@ class Deep3Dnet:
 
         #Initializing to bilinear interpolation
         C = (2 * filter_size - 1 - (filter_size % 2))/(2*filter_size)
-        initial_value = tf.zeros([filter_size,filter_size,in_channels,out_channels])
+        initial_value = np.zeros([filter_size, filter_size, in_channels, out_channels])
+
         for i in xrange(filter_size):
             for j in xrange(filter_size):
-                initial_value[i, j] = (1-tf.abs(i/(filter_size - C))) * (1-tf.abs(j/(filter_size - C)))
+                initial_value[i, j] = (1-np.abs(i/(filter_size - C))) * (1-np.abs(j/(filter_size - C)))
+        initial_value = tf.convert_to_tensor(initial_value, tf.float32)
         filters = self.get_var(initial_value, name, 0, name + "_filters")
 
         biases = None
