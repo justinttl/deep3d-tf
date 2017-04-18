@@ -82,7 +82,6 @@ class Deep3Dnet:
         self.conv5_3 = self.conv_layer(self.conv5_2, 512, 512, "conv5_3")
         self.conv5_4 = self.conv_layer(self.conv5_3, 512, 512, "conv5_4")
         self.pool5 = self.max_pool(self.conv5_4, 'pool5')
-        print self.pool5.get_shape().as_list()
 
         
 
@@ -112,8 +111,6 @@ class Deep3Dnet:
         scale = 2
         self.up = self.deconv_layer(self.pred5,33,33,scale,0,'up_deconv_2')
         self.up = tf.nn.relu(self.up)
-        print 'conv input shape'
-        print self.up.get_shape().as_list()
         self.up = self.conv_layer(self.up, 33, 33, "up_conv_1")
         
         self.mask = tf.nn.softmax(self.up)
@@ -121,7 +118,6 @@ class Deep3Dnet:
         self.prob  = selection.select(self.mask, rgb)
         
         self.data_dict = None
-        
         return self.prob
    
         """
