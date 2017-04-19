@@ -16,7 +16,7 @@ class Deep3Dnet:
     def __init__(self, deep3d_path=None, trainable=True, dropout=0.5):
         if deep3d_path is not None:
             if os.path.isfile(deep3d_path):
-                self.data_dict = np.load(vgg19_npy_path, encoding='latin1').item()
+                self.data_dict = np.load(deep3d_path, encoding='latin1').item()
             
                 #removing pre-trained weights for fully connected layers so they'll be re-initialized
                 del self.data_dict[u'fc6']
@@ -102,23 +102,22 @@ class Deep3Dnet:
         
         scale = 16
         #this is is resizing the output of the fully connected layers
-        self.pred5 = tf.reshape(self.fc8,[-1,5,9,33])
-        self.pred5 = tf.nn.relu(self.pred5)
-        self.pred5 = self.deconv_layer(self.pred5,33,33,scale,0,'pred5_deconv_2')
-        self.feat_act = tf.nn.relu(self.pred5)
+        self.pred5_1 = tf.reshape(self.fc8,[-1,5,9,33])
+        self.pred5_2 = tf.nn.relu(self.pred5_1)
+        self.pred5_3 = self.deconv_layer(self.pred5_2,33,33,scale,0,'pred5_deconv')
+        self.feat_act = tf.nn.relu(self.pred5_3)
 
 
         scale = 2
-        self.up = self.deconv_layer(self.pred5,33,33,scale,0,'up_deconv_2')
-        self.up = tf.nn.relu(self.up)
-        self.up = self.conv_layer(self.up, 33, 33, "up_conv_1")
+        self.up_1 = self.deconv_layer(self.feat_act,33,33,scale,0,'up_deconv')
+        self.up_2 = tf.nn.relu(self.up_1)
+        self.up_3 = self.conv_layer(self.up_2, 33, 33, "up_conv")
         
-        self.mask = tf.nn.softmax(self.up)
+        self.mask = tf.nn.softmax(self.up_3)
         
         self.prob  = selection.select(self.mask, rgb)
         
         self.data_dict = None
-        return self.prob
    
         """
         # MXNET code
