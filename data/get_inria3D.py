@@ -1,3 +1,5 @@
+# Script to download, untar and extract the inria dataset 
+
 import sys
 import shutil
 
