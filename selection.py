@@ -19,8 +19,9 @@ def select(masks, left_image, left_shift=16):
     padded = tf.pad(left_image, [[0,0],[0,0],[left_shift, left_shift],[0,0]], mode='REFLECT')
     # padded is the image padded whatever the left_shift variable is on either side
     for s in np.arange(S):
-        layers.append(tf.multiply(tf.slice(masks, [0,0,0,s], [-1, H, W, 1]),
-            tf.slice(padded, [0,0,s,0], [-1,H,W,-1])))
+        mask_slice = tf.slice(masks, [0,0,0,s], [-1, H, W, 1])
+        pad_slice  = tf.slice(padded, [0,0,s,0], [-1,H,W,-1])
+        layers.append(tf.multiply(mask_slice, pad_slice))
     return tf.add_n(layers)
 
 
