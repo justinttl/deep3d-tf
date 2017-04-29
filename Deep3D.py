@@ -8,6 +8,15 @@ import selection
 VGG_MEAN = [103.939, 116.779, 123.68]
 
 
+def variable_summaries(var):
+    """Attach a lot of summaries to a Tensor (for TensorBoard visualization).
+    https://www.tensorflow.org/get_started/summaries_and_tensorboard
+    """
+    with tf.name_scope('summaries'):
+        mean = tf.reduce_mean(var)
+        tf.summary.scalar('mean', mean)
+        tf.summary.histogram('histogram', var)
+
 class Deep3Dnet:
     """
     A trainable version deep3dnet.
@@ -67,6 +76,7 @@ class Deep3Dnet:
 
         self.conv3_1 = self.conv_layer(self.pool2, 128, 256, "conv3_1")
         self.conv3_2 = self.conv_layer(self.conv3_1, 256, 256, "conv3_2")
+
         self.conv3_3 = self.conv_layer(self.conv3_2, 256, 256, "conv3_3")
         self.conv3_4 = self.conv_layer(self.conv3_3, 256, 256, "conv3_4")
         self.pool3 = self.max_pool(self.conv3_4, 'pool3')
@@ -80,11 +90,8 @@ class Deep3Dnet:
         self.conv5_1 = self.conv_layer(self.pool4, 512, 512, "conv5_1")
         self.conv5_2 = self.conv_layer(self.conv5_1, 512, 512, "conv5_2")
         self.conv5_3 = self.conv_layer(self.conv5_2, 512, 512, "conv5_3")
-        self.conv5_4 = self.conv_layer(self.conv5_3, 512, 512, "conv5_4")
+        self.conv5_4 = self.conv_layer(self.conv5_3, 512, 512, "conv5_4", tracking=1)
         self.pool5 = self.max_pool(self.conv5_4, 'pool5')
-
-        
-
 
         self.fc6 = self.fc_layer(self.pool5, 23040, 4096, "fc6") #23040=((160//(2**5))*(288//(2**5)))*512
         self.relu6 = tf.nn.relu(self.fc6)
@@ -104,19 +111,21 @@ class Deep3Dnet:
         #this is is resizing the output of the fully connected layers
         self.pred5_1 = tf.reshape(self.fc8,[-1,5,9,33])
         self.pred5_2 = tf.nn.relu(self.pred5_1)
-        self.pred5_3 = self.deconv_layer(self.pred5_2,33,33,scale,0,'pred5_deconv')
+        self.pred5_3 = self.deconv_layer(self.pred5_2, 33, 33, scale, 0, 'pred5_deconv')
         self.feat_act = tf.nn.relu(self.pred5_3)
 
 
         scale = 2
-        self.up_1 = self.deconv_layer(self.feat_act,33,33,scale,0,'up_deconv')
+        self.up_1 = self.deconv_layer(self.feat_act, 33, 33, scale, 0, 'up_deconv', initialization='bilinear')
         self.up_2 = tf.nn.relu(self.up_1)
-        self.up_3 = self.conv_layer(self.up_2, 33, 33, "up_conv")
+        self.up_3 = self.conv_layer(self.up_2, 33, 33, "up_conv", tracking=1)
         
         self.mask = tf.nn.softmax(self.up_3)
-        
+
+
+
         self.prob  = selection.select(self.mask, rgb)
-        
+
         self.data_dict = None
    
         """
@@ -218,20 +227,20 @@ class Deep3Dnet:
     def max_pool(self, bottom, name):
         return tf.nn.max_pool(bottom, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME', name=name)
 
-    def conv_layer(self, bottom, in_channels, out_channels, name):
+    def conv_layer(self, bottom, in_channels, out_channels, name, tracking=0):
         with tf.variable_scope(name):
-            filt, conv_biases = self.get_conv_var(3, in_channels, out_channels, name)
+            filt, conv_biases = self.get_conv_var(3, in_channels, out_channels, name, tracking)
             conv = tf.nn.conv2d(bottom, filt, [1, 1, 1, 1], padding='SAME')
             bias = tf.nn.bias_add(conv, conv_biases)
             relu = tf.nn.relu(bias)
             return relu
     
-    def deconv_layer(self, bottom, in_channels, out_channels, scale, bias, name):
+    def deconv_layer(self, bottom, in_channels, out_channels, scale, bias, name, initialization='default'):
         N, H, W, C = bottom.get_shape().as_list()
         shape_output = [N, scale * (H - 1) + scale * 2 - scale, scale * (W - 1) + scale * 2 - scale, out_channels]
 
         with tf.variable_scope(name):
-            filt, deconv_biases = self.get_deconv_var(2*scale, in_channels, out_channels, bias, name)
+            filt, deconv_biases = self.get_deconv_var(2*scale, in_channels, out_channels, bias, initialization, name)
             deconv = tf.nn.conv2d_transpose(bottom, filt, shape_output, [1, scale, scale, 1])
             if bias:
                 bias = tf.nn.bias_add(deconv, deconv_biases)
@@ -241,16 +250,20 @@ class Deep3Dnet:
                 return deconv
 
 
-    def get_deconv_var(self, filter_size, in_channels, out_channels, bias, name):
+    def get_deconv_var(self, filter_size, in_channels, out_channels, bias, initialization, name):
 
         #Initializing to bilinear interpolation
-        C = (2 * filter_size - 1 - (filter_size % 2))/(2*filter_size)
-        initial_value = np.zeros([filter_size, filter_size, in_channels, out_channels])
+        if initialization == 'bilinear':
+            C = (2 * filter_size - 1 - (filter_size % 2))/(2*filter_size)
+            initial_value = np.zeros([filter_size, filter_size, in_channels, out_channels])
 
-        for i in xrange(filter_size):
-            for j in xrange(filter_size):
-                initial_value[i, j] = (1-np.abs(i/(filter_size - C))) * (1-np.abs(j/(filter_size - C)))
-        initial_value = tf.convert_to_tensor(initial_value, tf.float32)
+            for i in xrange(filter_size):
+                for j in xrange(filter_size):
+                    initial_value[i, j] = (1-np.abs(i/(filter_size - C))) * (1-np.abs(j/(filter_size - C)))
+            initial_value = tf.convert_to_tensor(initial_value, tf.float32)
+        else:
+            initial_value = tf.truncated_normal([filter_size,filter_size,in_channels,out_channels],0.0,0.01)
+
         filters = self.get_var(initial_value, name, 0, name + "_filters")
 
         biases = None
@@ -268,12 +281,19 @@ class Deep3Dnet:
             fc = tf.nn.bias_add(tf.matmul(x, weights), biases)
             return fc
 
-    def get_conv_var(self, filter_size, in_channels, out_channels, name):
+    def get_conv_var(self, filter_size, in_channels, out_channels, name, tracking):
+
         initial_value = tf.truncated_normal([filter_size, filter_size, in_channels, out_channels], 0.0, 0.01)
         filters = self.get_var(initial_value, name, 0, name + "_filters")
 
         initial_value = tf.truncated_normal([out_channels], 0.0, 0.01)
         biases = self.get_var(initial_value, name, 1, name + "_biases")
+
+        if tracking == 1:
+            with tf.name_scope('filters'):
+                variable_summaries(filters)
+            with tf.name_scope('biases'):
+                variable_summaries(biases)
 
         return filters, biases
 
