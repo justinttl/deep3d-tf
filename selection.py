@@ -6,7 +6,7 @@ import skimage.transform
 import numpy as np
 
 
-def select(masks, left_image, left_shift=16):
+def select(masks, left_image, left_shift=16, name1=layer_name):
     '''
     assumes inputs:
         masks, shape N, H, W, S
@@ -14,26 +14,26 @@ def select(masks, left_image, left_shift=16):
     returns
         right_image, shape N, H, W, C
     '''
-    
+
     _, H, W, S = masks.get_shape().as_list()
-    
-    padded = tf.pad(left_image, [[0,0],[0,0],[left_shift, left_shift],[0,0]], mode='REFLECT')
-    
-    
-    
-    # padded is the image padded whatever the left_shift variable is on either side
-    #layers = []
-    #for s in np.arange(S):
-    #    mask_slice = tf.slice(masks, [0,0,0,s], [-1, H, W, 1])
-    #    pad_slice  = tf.slice(padded, [0,0,s,0], [-1,H,W,-1])
-    #    layers.append(tf.multiply(mask_slice, pad_slice))
-    #return tf.add_n(layers)
-    
-    layers = tf.zeros_like(left_image)
-    for s in np.arange(S):
-        mask_slice = tf.slice(masks, [0,0,0,s], [-1, H, W, 1])
-        pad_slice  = tf.slice(padded, [0,0,s,0], [-1,H,W,-1])
-        layers = tf.add(layers, tf.multiply(mask_slice, pad_slice))
+    with tf.variable_scope(name1):
+        padded = tf.pad(left_image, [[0,0],[0,0],[left_shift, left_shift],[0,0]], mode='REFLECT')
+
+
+
+        # padded is the image padded whatever the left_shift variable is on either side
+        #layers = []
+        #for s in np.arange(S):
+        #    mask_slice = tf.slice(masks, [0,0,0,s], [-1, H, W, 1])
+        #    pad_slice  = tf.slice(padded, [0,0,s,0], [-1,H,W,-1])
+        #    layers.append(tf.multiply(mask_slice, pad_slice))
+        #return tf.add_n(layers)
+
+        layers = tf.zeros_like(left_image)
+        for s in np.arange(S):
+            mask_slice = tf.slice(masks, [0,0,0,s], [-1, H, W, 1])
+            pad_slice  = tf.slice(padded, [0,0,s,0], [-1,H,W,-1])
+            layers = tf.add(layers, tf.multiply(mask_slice, pad_slice))
     
     return layers
 
