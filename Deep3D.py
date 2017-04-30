@@ -50,21 +50,21 @@ class Deep3Dnet:
         :param rgb: rgb image [batch, height, width, 3] values scaled [0, 1]
         :param train_mode: a bool tensor, usually a placeholder: if True, dropout will be turned on
         """
+        with tf.variable_scope("Pre_Processing"):
+            rgb_scaled = rgb * 255.0
 
-        rgb_scaled = rgb * 255.0
+            # Convert RGB to BGR
+            red, green, blue = tf.split(axis=3, num_or_size_splits=3, value=rgb_scaled)
+            assert red.get_shape().as_list()[1:] == [160, 288, 1]
+            assert green.get_shape().as_list()[1:] == [160, 288, 1]
+            assert blue.get_shape().as_list()[1:] == [160, 288, 1]
+            bgr = tf.concat(axis=3, values=[
+                blue - VGG_MEAN[0],
+                green - VGG_MEAN[1],
+                red - VGG_MEAN[2],
+            ])
+            assert bgr.get_shape().as_list()[1:] == [160, 288, 3]
 
-        # Convert RGB to BGR
-        red, green, blue = tf.split(axis=3, num_or_size_splits=3, value=rgb_scaled)
-        assert red.get_shape().as_list()[1:] == [160, 288, 1]
-        assert green.get_shape().as_list()[1:] == [160, 288, 1]
-        assert blue.get_shape().as_list()[1:] == [160, 288, 1]
-        bgr = tf.concat(axis=3, values=[
-            blue - VGG_MEAN[0],
-            green - VGG_MEAN[1],
-            red - VGG_MEAN[2],
-        ])
-        assert bgr.get_shape().as_list()[1:] == [160, 288, 3]
-        
         # Convolution Stages
         self.conv1_1 = self.conv_layer(bgr, 3, 64, "conv1_1")
         self.conv1_2 = self.conv_layer(self.conv1_1, 64, 64, "conv1_2", tracking=1)
@@ -93,26 +93,29 @@ class Deep3Dnet:
         self.pool5 = self.max_pool(self.conv5_4, 'pool5')
 
         # FC Layers + Relu + Dropout
-        self.fc6 = self.affine_layer(self.pool5, 23040, 4096, train_mode, "fc6") #23040=((160//(2**5))*(288//(2**5)))*512
+        # First Dimensions: 23040=((160//(2**5))*(288//(2**5)))*512
+        self.fc6 = self.affine_layer(self.pool5, 23040, 4096, train_mode, "fc6") 
         self.fc7 = self.affine_layer(self.fc6, 4096, 4096, train_mode, "fc7")
         self.fc8 = self.affine_layer(self.fc7, 4096, 33*9*5, train_mode, "fc8")
         
-        # Up Scaling 
-        self.pred5_1 = tf.reshape(self.fc8,[-1,5,9,33])
+        # UpScaling 
+        with tf.variable_scope("FC_rs"):
+            self.fc_RS = tf.reshape(self.fc8,[-1,5,9,33])
         
         scale = 16
-        self.pred5_2 = self.deconv_layer(self.pred5_1, 33, 33, scale, 0, 'pred5_deconv')
-        self.feat_act = tf.nn.relu(self.pred5_2)
+        self.up5 = self.deconv_layer(self.fc_RS, 33, 33, scale, 0, 'up5')
 
+        # Combine and x2 Upsample
+        self.up_sum = self.up5
+        
         scale = 2
-        self.up_1 = self.deconv_layer(self.feat_act, 33, 33, scale, 0, 'up_deconv', initialization='bilinear')
-        self.up_2 = tf.nn.relu(self.up_1)
+        self.up = self.deconv_layer(self.up_sum, 33, 33, scale, 0, 'up', initialization='bilinear')
+        self.up_conv = self.conv_layer(self.up, 33, 33, "up_conv", tracking=1)
         
-        self.up_3 = self.conv_layer(self.up_2, 33, 33, "up_conv", tracking=1)
-        
-      
         # Add + Mask + Selection
-        self.mask = tf.nn.softmax(self.up_3)
+        with tf.variable_scope("mask_softmax"):
+            self.mask = tf.nn.softmax(self.up_conv)
+            
         self.prob  = selection.select(self.mask, rgb)
 
         # Clear out init dictionary
@@ -139,11 +142,9 @@ class Deep3Dnet:
             filt, deconv_biases = self.get_deconv_var(2*scale, in_channels, out_channels, bias, initialization, name)
             deconv = tf.nn.conv2d_transpose(bottom, filt, shape_output, [1, scale, scale, 1])
             if bias:
-                bias = tf.nn.bias_add(deconv, deconv_biases)
-                relu = tf.nn.relu(bias)
-                return relu
-            else:
-                return deconv
+                deconv = tf.nn.bias_add(deconv, deconv_biases)
+            relu = tf.nn.relu(deconv)
+            return relu
             
     def affine_layer(self, bottom, in_size, out_size, train_mode, name):
         with tf.variable_scope(name):
@@ -162,10 +163,12 @@ class Deep3Dnet:
 
         initial_value = tf.truncated_normal([filter_size, filter_size, in_channels, out_channels], 0.0, 0.01)
         filters = self.get_var(initial_value, name, 0, name + "_filters")
-
+        del initial_value
+        
         initial_value = tf.truncated_normal([out_channels], 0.0, 0.01)
         biases = self.get_var(initial_value, name, 1, name + "_biases")
-
+        del initial_value
+        
         if tracking == 1:
             with tf.name_scope('filters'):
                 variable_summaries(filters)
@@ -222,7 +225,6 @@ class Deep3Dnet:
     def get_var(self, initial_value, name, idx, var_name):
         if self.data_dict is not None and name in self.data_dict:
             value = self.data_dict[name][idx]
-            del initial_value
         else:
             value = initial_value
 
@@ -233,9 +235,8 @@ class Deep3Dnet:
 
         self.var_dict[(name, idx)] = var
 
-        # print var_name, var.get_shape().as_list()
         assert var.get_shape() == initial_value.get_shape()
-
+       
         return var
     
     

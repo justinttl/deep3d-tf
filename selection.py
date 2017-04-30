@@ -6,7 +6,7 @@ import skimage.transform
 import numpy as np
 
 
-def select(masks, left_image, left_shift=16, name1=layer_name):
+def select(masks, left_image, left_shift=16, name="select"):
     '''
     assumes inputs:
         masks, shape N, H, W, S
@@ -16,7 +16,7 @@ def select(masks, left_image, left_shift=16, name1=layer_name):
     '''
 
     _, H, W, S = masks.get_shape().as_list()
-    with tf.variable_scope(name1):
+    with tf.variable_scope(name):
         padded = tf.pad(left_image, [[0,0],[0,0],[left_shift, left_shift],[0,0]], mode='REFLECT')
         
         
@@ -29,7 +29,7 @@ def select(masks, left_image, left_shift=16, name1=layer_name):
         slices = tf.stack(layers, axis=4)
         disparity_image = tf.multiply(slices, tf.expand_dims(masks, axis=3))
         
-        return tf.reduce_sum(slices, disparity_image, axis=4)
+        return tf.reduce_sum(disparity_image, axis=4)
 
         #layers = tf.zeros_like(left_image)
         #for s in np.arange(S):
