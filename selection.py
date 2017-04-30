@@ -18,24 +18,26 @@ def select(masks, left_image, left_shift=16, name1=layer_name):
     _, H, W, S = masks.get_shape().as_list()
     with tf.variable_scope(name1):
         padded = tf.pad(left_image, [[0,0],[0,0],[left_shift, left_shift],[0,0]], mode='REFLECT')
-
-
+        
+        
 
         # padded is the image padded whatever the left_shift variable is on either side
-        #layers = []
+        layers = []
+        for s in np.arange(S):
+            layers.append(tf.slice(padded, [0,0,s,0], [-1,H,W,-1]))
+        
+        slices = tf.stack(layers, axis=4)
+        disparity_image = tf.multiply(slices, tf.expand_dims(masks, axis=3))
+        
+        return tf.reduce_sum(slices, disparity_image, axis=4)
+
+        #layers = tf.zeros_like(left_image)
         #for s in np.arange(S):
         #    mask_slice = tf.slice(masks, [0,0,0,s], [-1, H, W, 1])
         #    pad_slice  = tf.slice(padded, [0,0,s,0], [-1,H,W,-1])
-        #    layers.append(tf.multiply(mask_slice, pad_slice))
-        #return tf.add_n(layers)
-
-        layers = tf.zeros_like(left_image)
-        for s in np.arange(S):
-            mask_slice = tf.slice(masks, [0,0,0,s], [-1, H, W, 1])
-            pad_slice  = tf.slice(padded, [0,0,s,0], [-1,H,W,-1])
-            layers = tf.add(layers, tf.multiply(mask_slice, pad_slice))
+        #    layers = tf.add(layers, tf.multiply(mask_slice, pad_slice))
     
-    return layers
+        #return layers
 
 
 # YOU CAN IGNORE THE FOLLOWING:
