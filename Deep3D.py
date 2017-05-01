@@ -85,22 +85,22 @@ class Deep3Dnet:
 
         # FC Layers + Relu + Dropout
         # First Dimensions: 23040=((160//(2**5))*(288//(2**5)))*512
-        self.fc6 = self.affine_layer(self.pool5, 23040, 4096, train_mode, "fc6") 
-        self.fc7 = self.affine_layer(self.fc6, 4096, 4096, train_mode, "fc7")
-        self.fc8 = self.affine_layer(self.fc7, 4096, 33*9*5, train_mode, "fc8")
+        self.fc6 = self.affine_layer(self.pool5, 23040, 4096, train_mode, "fc6", tracking=1) 
+        self.fc7 = self.affine_layer(self.fc6, 4096, 4096, train_mode, "fc7", tracking=1)
+        self.fc8 = self.affine_layer(self.fc7, 4096, 33*9*5, train_mode, "fc8", tracking=1)
         
         # UpScaling 
         with tf.variable_scope("FC_rs"):
             self.fc_RS = tf.reshape(self.fc8,[-1,5,9,33])
         
         scale = 16
-        self.up5 = self.deconv_layer(self.fc_RS, 33, 33, scale, 0, 'up5')
+        self.up5 = self.deconv_layer(self.fc_RS, 33, 33, scale, 0, 'up5', tracking=1)
 
         # Combine and x2 Upsample
         self.up_sum = self.up5
         
         scale = 2
-        self.up = self.deconv_layer(self.up_sum, 33, 33, scale, 0, 'up', initialization='bilinear')
+        self.up = self.deconv_layer(self.up_sum, 33, 33, scale, 0, 'up', initialization='bilinear', tracking=1)
         self.up_conv = self.conv_layer(self.up, 33, 33, "up_conv", tracking=1)
         
         # Add + Mask + Selection
@@ -132,7 +132,7 @@ class Deep3Dnet:
 
             return relu
     
-    def deconv_layer(self, bottom, in_channels, out_channels, scale, bias, name, initialization='default'):
+    def deconv_layer(self, bottom, in_channels, out_channels, scale, bias, name, initialization='default', tracking = 0):
         
         with tf.variable_scope(name):
             N, H, W, C = bottom.get_shape().as_list()
@@ -152,7 +152,7 @@ class Deep3Dnet:
 
             return relu
             
-    def affine_layer(self, bottom, in_size, out_size, train_mode, name):
+    def affine_layer(self, bottom, in_size, out_size, train_mode, name, tracking = 0):
         with tf.variable_scope(name):
             weights, biases = self.get_fc_var(in_size, out_size, name)
             x = tf.reshape(bottom, [-1, in_size])
