@@ -143,12 +143,12 @@ class Deep3Dnet:
             if bias:
                 deconv = tf.nn.bias_add(deconv, biases)
             relu = tf.nn.relu(deconv)
-	
+
             if tracking == 1:
                 with tf.name_scope('filters'):
                     variable_summaries(filters)
                 if bias:
-		    with tf.name_scope('biases'):
+                    with tf.name_scope('biases'):
                         variable_summaries(biases)
 
             return relu
@@ -167,7 +167,6 @@ class Deep3Dnet:
                     variable_summaries(weights)
                 with tf.name_scope('biases'):
                     variable_summaries(biases)
-
 
             return relu    
                 
@@ -200,13 +199,12 @@ class Deep3Dnet:
             initial_value = tf.truncated_normal([filter_size,filter_size,in_channels,out_channels],0.0,0.01)
 
         filters = self.get_var(initial_value, name, 0, name + "_filters")
-	del initial_value
-
+        
         biases = None
         if bias:
             initial_value = tf.truncated_normal([out_channels], 0.0, 0.01)
             biases = self.get_var(initial_value, name, 1, name + "_biases")
-	    del initial_value
+        del initial_value
         return filters, biases
 
     def get_fc_var(self, in_size, out_size, name):
@@ -277,12 +275,13 @@ def variable_summaries(var):
     """Attach a lot of summaries to a Tensor (for TensorBoard visualization).
     https://www.tensorflow.org/get_started/summaries_and_tensorboard
     """
+    
     with tf.name_scope('summaries'):
         mean = tf.reduce_mean(var)
         tf.summary.scalar('mean', mean)
         tf.summary.histogram('histogram', var)
-        with tf.name_scope('stddev'):
-            stddev = tf.sqrt(tf.reduce_mean(tf.square(var - mean)))
-        tf.summary.scalar('stddev', stddev)
+        tf.summary.scalar('stddev',tf.sqrt(tf.reduce_mean(tf.square(var - mean))))
         tf.summary.scalar('max', tf.reduce_max(var))
         tf.summary.scalar('min', tf.reduce_min(var))
+
+    
