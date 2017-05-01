@@ -32,14 +32,14 @@ print "Training Size:" + str(X_train.shape)
 print "Validation Size:" + str(X_val.shape)
 
 
-num_batches = 20
-batchsize = 50
+num_batches = 100
+batchsize = 32
 print_step = 1
 #cost_hist = []
 viz_step = 10
 
 # Define config for GPU memory debugging 
-config = tf.ConfigProto()
+config = tf.ConfigProto(allow_soft_placement = True)
 config.gpu_options.allow_growth=True  # Switch to True for dynamic memory allocation instead of TF hogging BS
 config.gpu_options.per_process_gpu_memory_fraction= 1  # Cap TF mem usage
 
@@ -67,7 +67,7 @@ with tf.device('/gpu:0'):
     
     # Define Training Objectives
     cost = tf.reduce_sum(tf.abs(net.prob - true_out), name='L1_loss')
-    train = tf.train.GradientDescentOptimizer(0.002).minimize(cost)
+    train = tf.train.GradientDescentOptimizer(0.001).minimize(cost)
     
     # tensorboard operations to compile summary and then write into logs
     merged = tf.summary.merge_all()

@@ -100,7 +100,7 @@ class Deep3Dnet:
         self.up_sum = self.up5
         
         scale = 2
-        self.up = self.deconv_layer(self.up_sum, 33, 33, scale, 0, 'up', initialization='bilinear', tracking=1)
+        self.up = self.deconv_layer(self.up_sum, 33, 33, scale, 0, 'up', initialization='default', tracking=1)
         self.up_conv = self.conv_layer(self.up, 33, 33, "up_conv", tracking=1)
         
         # Add + Mask + Selection
@@ -143,12 +143,13 @@ class Deep3Dnet:
             if bias:
                 deconv = tf.nn.bias_add(deconv, biases)
             relu = tf.nn.relu(deconv)
-
+	
             if tracking == 1:
                 with tf.name_scope('filters'):
                     variable_summaries(filters)
-                with tf.name_scope('biases'):
-                    variable_summaries(biases)
+                if bias:
+		    with tf.name_scope('biases'):
+                        variable_summaries(biases)
 
             return relu
             
@@ -199,14 +200,13 @@ class Deep3Dnet:
             initial_value = tf.truncated_normal([filter_size,filter_size,in_channels,out_channels],0.0,0.01)
 
         filters = self.get_var(initial_value, name, 0, name + "_filters")
-        del initial_value
+	del initial_value
 
         biases = None
         if bias:
             initial_value = tf.truncated_normal([out_channels], 0.0, 0.01)
             biases = self.get_var(initial_value, name, 1, name + "_biases")
-            del initial_value
-
+	    del initial_value
         return filters, biases
 
     def get_fc_var(self, in_size, out_size, name):
