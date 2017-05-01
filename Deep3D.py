@@ -138,10 +138,10 @@ class Deep3Dnet:
             N, H, W, C = bottom.get_shape().as_list()
             shape_output = [N, scale * (H - 1) + scale * 2 - scale, scale * (W - 1) + scale * 2 - scale, out_channels] 
 
-            filt, deconv_biases = self.get_deconv_var(2*scale, in_channels, out_channels, bias, initialization, name)
-            deconv = tf.nn.conv2d_transpose(bottom, filt, shape_output, [1, scale, scale, 1])
+            filters, biases = self.get_deconv_var(2*scale, in_channels, out_channels, bias, initialization, name)
+            deconv = tf.nn.conv2d_transpose(bottom, filters, shape_output, [1, scale, scale, 1])
             if bias:
-                deconv = tf.nn.bias_add(deconv, deconv_biases)
+                deconv = tf.nn.bias_add(deconv, biases)
             relu = tf.nn.relu(deconv)
 
             if tracking == 1:
@@ -199,22 +199,26 @@ class Deep3Dnet:
             initial_value = tf.truncated_normal([filter_size,filter_size,in_channels,out_channels],0.0,0.01)
 
         filters = self.get_var(initial_value, name, 0, name + "_filters")
+        del initial_value
 
         biases = None
         if bias:
             initial_value = tf.truncated_normal([out_channels], 0.0, 0.01)
             biases = self.get_var(initial_value, name, 1, name + "_biases")
+            del initial_value
 
         return filters, biases
 
     def get_fc_var(self, in_size, out_size, name):
         #initialize all other weights with normal distribution with a standard deviation of 0.01
         initial_value = tf.truncated_normal([in_size, out_size], 0.0, 0.01)
-        
         weights = self.get_var(initial_value, name, 0, name + "_weights")
+        del initial_value
 
         initial_value = tf.truncated_normal([out_size], 0.0, 0.01)
         biases = self.get_var(initial_value, name, 1, name + "_biases")
+        del initial_value
+
 
         return weights, biases
     
