@@ -119,9 +119,9 @@ class Deep3Dnet:
 
     def conv_layer(self, bottom, in_channels, out_channels, name, tracking=0):
         with tf.variable_scope(name):
-            filt, conv_biases = self.get_conv_var(3, in_channels, out_channels, name, tracking)
-            conv = tf.nn.conv2d(bottom, filt, [1, 1, 1, 1], padding='SAME')
-            bias = tf.nn.bias_add(conv, conv_biases)
+            filters, biases = self.get_conv_var(3, in_channels, out_channels, name, tracking)
+            conv = tf.nn.conv2d(bottom, filters, [1, 1, 1, 1], padding='SAME')
+            bias = tf.nn.bias_add(conv, biases)
             relu = tf.nn.relu(bias)
 
             if tracking == 1:
