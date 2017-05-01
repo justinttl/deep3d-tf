@@ -8,15 +8,6 @@ import selection
 VGG_MEAN = [103.939, 116.779, 123.68]
 
 
-def variable_summaries(var):
-    """Attach a lot of summaries to a Tensor (for TensorBoard visualization).
-    https://www.tensorflow.org/get_started/summaries_and_tensorboard
-    """
-    with tf.name_scope('summaries'):
-        mean = tf.reduce_mean(var)
-        tf.summary.scalar('mean', mean)
-        tf.summary.histogram('histogram', var)
-
 class Deep3Dnet:
     """
     A trainable version deep3dnet.
@@ -132,18 +123,33 @@ class Deep3Dnet:
             conv = tf.nn.conv2d(bottom, filt, [1, 1, 1, 1], padding='SAME')
             bias = tf.nn.bias_add(conv, conv_biases)
             relu = tf.nn.relu(bias)
+
+            if tracking == 1:
+                with tf.name_scope('filters'):
+                    variable_summaries(filters)
+                with tf.name_scope('biases'):
+                    variable_summaries(biases)
+
             return relu
     
     def deconv_layer(self, bottom, in_channels, out_channels, scale, bias, name, initialization='default'):
-        N, H, W, C = bottom.get_shape().as_list()
-        shape_output = [N, scale * (H - 1) + scale * 2 - scale, scale * (W - 1) + scale * 2 - scale, out_channels]
-
+        
         with tf.variable_scope(name):
+            N, H, W, C = bottom.get_shape().as_list()
+            shape_output = [N, scale * (H - 1) + scale * 2 - scale, scale * (W - 1) + scale * 2 - scale, out_channels] 
+
             filt, deconv_biases = self.get_deconv_var(2*scale, in_channels, out_channels, bias, initialization, name)
             deconv = tf.nn.conv2d_transpose(bottom, filt, shape_output, [1, scale, scale, 1])
             if bias:
                 deconv = tf.nn.bias_add(deconv, deconv_biases)
             relu = tf.nn.relu(deconv)
+
+            if tracking == 1:
+                with tf.name_scope('filters'):
+                    variable_summaries(filters)
+                with tf.name_scope('biases'):
+                    variable_summaries(biases)
+
             return relu
             
     def affine_layer(self, bottom, in_size, out_size, train_mode, name):
@@ -155,6 +161,13 @@ class Deep3Dnet:
             if train_mode is not None and self.trainable:
                 relu = tf.nn.dropout(relu, self.dropout)
            
+            if tracking == 1:
+                with tf.name_scope('weights'):
+                    variable_summaries(weights)
+                with tf.name_scope('biases'):
+                    variable_summaries(biases)
+
+
             return relu    
                 
     
@@ -168,12 +181,6 @@ class Deep3Dnet:
         initial_value = tf.truncated_normal([out_channels], 0.0, 0.01)
         biases = self.get_var(initial_value, name, 1, name + "_biases")
         del initial_value
-        
-        if tracking == 1:
-            with tf.name_scope('filters'):
-                variable_summaries(filters)
-            with tf.name_scope('biases'):
-                variable_summaries(biases)
 
         return filters, biases
     
@@ -261,3 +268,17 @@ class Deep3Dnet:
         for v in list(self.var_dict.values()):
             count += reduce(lambda x, y: x * y, v.get_shape().as_list())
         return count
+
+def variable_summaries(var):
+    """Attach a lot of summaries to a Tensor (for TensorBoard visualization).
+    https://www.tensorflow.org/get_started/summaries_and_tensorboard
+    """
+    with tf.name_scope('summaries'):
+        mean = tf.reduce_mean(var)
+        tf.summary.scalar('mean', mean)
+        tf.summary.histogram('histogram', var)
+        with tf.name_scope('stddev'):
+            stddev = tf.sqrt(tf.reduce_mean(tf.square(var - mean)))
+        tf.summary.scalar('stddev', stddev)
+        tf.summary.scalar('max', tf.reduce_max(var))
+        tf.summary.scalar('min', tf.reduce_min(var))
