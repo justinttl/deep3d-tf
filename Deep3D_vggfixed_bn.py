@@ -32,7 +32,6 @@ class Deep3Dnet:
         self.trainable = trainable
         self.dropout = dropout
 
-        
 
     def build(self, rgb, train_mode=None):
         """
@@ -57,52 +56,53 @@ class Deep3Dnet:
             assert bgr.get_shape().as_list()[1:] == [160, 288, 3]
 
         # Convolution Stages
-        self.conv1_1 = self.conv_layer(bgr, 3, 64, "conv1_1", train_mode, fixed=1)
-        self.conv1_2 = self.conv_layer(self.conv1_1, 64, 64, "conv1_2", train_mode, tracking=1,fixed=1)
+        self.conv1_1 = self.conv_layer(bgr, 3, 64, "conv1_1",                train_mode, trainable=0)
+        self.conv1_2 = self.conv_layer(self.conv1_1, 64, 64, "conv1_2",      train_mode, tracking=1,trainable=0)
         self.pool1 = self.max_pool(self.conv1_2, 'pool1')
 
-        self.conv2_1 = self.conv_layer(self.pool1, 64, 128, "conv2_1", train_mode,fixed=1)
-        self.conv2_2 = self.conv_layer(self.conv2_1, 128, 128, "conv2_2", train_mode, tracking=1,fixed=1)
+        self.conv2_1 = self.conv_layer(self.pool1, 64, 128, "conv2_1",       train_mode,trainable=0)
+        self.conv2_2 = self.conv_layer(self.conv2_1, 128, 128, "conv2_2",    train_mode, tracking=1,trainable=0)
         self.pool2 = self.max_pool(self.conv2_2, 'pool2')
 
-        self.conv3_1 = self.conv_layer(self.pool2, 128, 256, "conv3_1",train_mode,fixed=1)
-        self.conv3_2 = self.conv_layer(self.conv3_1, 256, 256, "conv3_2", train_mode,fixed=1)
-        self.conv3_3 = self.conv_layer(self.conv3_2, 256, 256, "conv3_3", train_mode,fixed=1)
-        self.conv3_4 = self.conv_layer(self.conv3_3, 256, 256, "conv3_4", train_mode, tracking=1,fixed=1)
+        self.conv3_1 = self.conv_layer(self.pool2, 128, 256, "conv3_1",      train_mode,trainable=0)
+        self.conv3_2 = self.conv_layer(self.conv3_1, 256, 256, "conv3_2",    train_mode,trainable=0)
+        self.conv3_3 = self.conv_layer(self.conv3_2, 256, 256, "conv3_3",    train_mode,trainable=0)
+        self.conv3_4 = self.conv_layer(self.conv3_3, 256, 256, "conv3_4",    train_mode, tracking=1,trainable=0)
         self.pool3 = self.max_pool(self.conv3_4, 'pool3')
 
-        self.conv4_1 = self.conv_layer(self.pool3, 256, 512, "conv4_1", train_mode,fixed=1)
-        self.conv4_2 = self.conv_layer(self.conv4_1, 512, 512, "conv4_2",train_mode,fixed=1)
-        self.conv4_3 = self.conv_layer(self.conv4_2, 512, 512, "conv4_3", train_mode,fixed=1)
-        self.conv4_4 = self.conv_layer(self.conv4_3, 512, 512, "conv4_4", train_mode, tracking=1,fixed=1)
+        self.conv4_1 = self.conv_layer(self.pool3, 256, 512, "conv4_1",      train_mode,trainable=0)
+        self.conv4_2 = self.conv_layer(self.conv4_1, 512, 512, "conv4_2",    train_mode,trainable=0)
+        self.conv4_3 = self.conv_layer(self.conv4_2, 512, 512, "conv4_3",    train_mode,trainable=0)
+        self.conv4_4 = self.conv_layer(self.conv4_3, 512, 512, "conv4_4",    train_mode, tracking=1,trainable=0)
         self.pool4 = self.max_pool(self.conv4_4, 'pool4')
 
-        self.conv5_1 = self.conv_layer(self.pool4, 512, 512, "conv5_1", train_mode,fixed=1)
-        self.conv5_2 = self.conv_layer(self.conv5_1, 512, 512, "conv5_2", train_mode,fixed=1)
-        self.conv5_3 = self.conv_layer(self.conv5_2, 512, 512, "conv5_3",train_mode,fixed=1)
-        self.conv5_4 = self.conv_layer(self.conv5_3, 512, 512, "conv5_4", train_mode, tracking=1,fixed=1)
+        self.conv5_1 = self.conv_layer(self.pool4, 512, 512, "conv5_1",      train_mode, trainable=0)
+        self.conv5_2 = self.conv_layer(self.conv5_1, 512, 512, "conv5_2",    train_mode, trainable=0)
+        self.conv5_3 = self.conv_layer(self.conv5_2, 512, 512, "conv5_3",    train_mode, trainable=0)
+        self.conv5_4 = self.conv_layer(self.conv5_3, 512, 512, "conv5_4",    train_mode, tracking=1,trainable=0)
         self.pool5 = self.max_pool(self.conv5_4, 'pool5')
 
         # FC Layers + Relu + Dropout
         # First Dimensions: 23040=((160//(2**5))*(288//(2**5)))*512
-        self.fc6 = self.affine_layer(self.pool5, 23040, 4096, "fc6", train_mode, batchnorm=1, tracking=1) 
-        self.fc7 = self.affine_layer(self.fc6, 4096, 4096, "fc7", train_mode, batchnorm=1, tracking=1)
-        self.fc8 = self.affine_layer(self.fc7, 4096, 33*9*5, "fc8", train_mode, batchnorm=1, tracking=1)
+        self.fc6 = self.affine_layer(self.pool5, 23040, 4096, "fc6",         train_mode, tracking=1) 
+        self.fc7 = self.affine_layer(self.fc6, 4096, 4096, "fc7",            train_mode, tracking=1)
+        self.fc8 = self.affine_layer(self.fc7, 4096, 33*9*5, "fc8",          train_mode, tracking=1)
         
-        # UpScaling 
+        # Upscaling last branch
         with tf.variable_scope("FC_rs"):
             self.fc_RS = tf.reshape(self.fc8,[-1,5,9,33])
         
         scale = 16
-        self.up5 = self.deconv_layer(self.fc_RS, 33, 33, scale, 0, 'up5', train_mode, batchnorm=1, tracking=1)
+        self.up5 = self.deconv_layer(self.fc_RS, 33, 33, scale, 0, 'up5',    train_mode, tracking=1)
 
         # Combine and x2 Upsample
         self.up_sum = self.up5
-        
+    
         scale = 2
-        self.up = self.deconv_layer(self.up_sum, 33, 33, scale, 0, 'up', train_mode, initialization='default', batchnorm=1, tracking=1)
-        self.up_conv = self.conv_layer(self.up, 33, 33, "up_conv", train_mode, batchnorm=1, tracking=1)
+        self.up = self.deconv_layer(self.up_sum, 33, 33, scale, 0, 'up',     train_mode, tracking=1)
+        self.up_conv = self.conv_layer(self.up, 33, 33, "up_conv",           train_mode, tracking=1)
         
+        # Tracking presoftmax activation
         with tf.name_scope('up_conv_act'):
             variable_summaries(self.up_conv)
         
@@ -110,8 +110,13 @@ class Deep3Dnet:
         # Add + Mask + Selection
         with tf.variable_scope("mask_softmax"):
             self.mask = tf.nn.softmax(self.up_conv)
+
+        with tf.name_scope('mask_act'):
+            variable_summaries(self.up_conv)
         
+
         self.prob  = selection.select(self.mask, rgb)
+
         with tf.name_scope('prob'):
             variable_summaries(self.prob)
 
@@ -123,15 +128,21 @@ class Deep3Dnet:
     def max_pool(self, bottom, name):
         return tf.nn.max_pool(bottom, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME', name=name)
     
-    def batch_norm(self, bottom, train_mode, name):
-        return tf.contrib.layers.batch_norm(bottom, center=True, scale=True, is_training=train_mode, scope='bn')
+    def batch_norm(self, bottom, train_mode, name='bn'):
+        return tf.contrib.layers.batch_norm(bottom, center=True, scale=True, is_training=train_mode, scope=name)
     
-    
-    def conv_layer(self, bottom, in_channels, out_channels, name, train_mode, batchnorm=0, tracking=0,fixed=0):
+
+    def conv_layer(self, bottom, in_channels, out_channels, name,
+                   train_mode, batchnorm=0, tracking=0, trainable=1):
+
         with tf.variable_scope(name):
-            filters, biases = self.get_conv_var(3, in_channels, out_channels, name, tracking,fixed)
+            filters, biases = self.get_conv_var(3, in_channels, out_channels, name, trainable)
             conv = tf.nn.conv2d(bottom, filters, [1, 1, 1, 1], padding='SAME')
             bias = tf.nn.bias_add(conv, biases)
+            
+            if batchnorm == 1:
+                 bias = batch_norm(bias, train_mode)
+            
             relu = tf.nn.relu(bias)
 
             if tracking == 1:
@@ -139,21 +150,27 @@ class Deep3Dnet:
                     variable_summaries(filters)
                 with tf.name_scope('biases'):
                     variable_summaries(biases)
-            if batchnorm == 1:
-                return tf.contrib.layers.batch_norm(relu, center=True, scale=True, is_training=train_mode, scope='bn')
-            else:
-                return relu
+                    
+            return relu
     
-    def deconv_layer(self, bottom, in_channels, out_channels, scale, bias, name, train_mode, initialization='default',  batchnorm=0, tracking = 0):
+
+    def deconv_layer(self, bottom, in_channels, out_channels, 
+                     scale, bias, name,
+                     train_mode, initialization='default', batchnorm=0, tracking = 0, trainable=1):
         
         with tf.variable_scope(name):
             N, H, W, C = bottom.get_shape().as_list()
             shape_output = [N, scale * (H - 1) + scale * 2 - scale, scale * (W - 1) + scale * 2 - scale, out_channels] 
 
-            filters, biases = self.get_deconv_var(2*scale, in_channels, out_channels, bias, initialization, name)
+            filters, biases = self.get_deconv_var(2*scale, in_channels, out_channels, bias, initialization, name, trainable)
             deconv = tf.nn.conv2d_transpose(bottom, filters, shape_output, [1, scale, scale, 1])
+
             if bias:
                 deconv = tf.nn.bias_add(deconv, biases)
+
+            if batchnorm == 1:
+                 deconv = batch_norm(deconv, train_mode)
+            
             relu = tf.nn.relu(deconv)
 
             if tracking == 1:
@@ -163,105 +180,111 @@ class Deep3Dnet:
                     with tf.name_scope('biases'):
                         variable_summaries(biases)
 
-            if batchnorm == 1:
-                return tf.contrib.layers.batch_norm(relu, center=True, scale=True, is_training=train_mode, scope='bn')
-            else:
-                return relu
-            
-    def affine_layer(self, bottom, in_size, out_size, name, train_mode, batchnorm=0, tracking = 0,fixed=0):
+            return relu
+
+    def affine_layer(self, bottom, in_size, out_size, name,
+                     train_mode, batchnorm=0, tracking=0, trainable=1):
         with tf.variable_scope(name):
-            weights, biases = self.get_fc_var(in_size, out_size, name,fixed)
+            weights, biases = self.get_fc_var(in_size, out_size, name, trainable)
             x = tf.reshape(bottom, [-1, in_size])
             fc = tf.nn.bias_add(tf.matmul(x, weights), biases)
+            
+            if batchnorm == 1:
+                fc = batch_norm(fc, train_mode)
+        
             relu = tf.nn.relu(fc)
+            
             if train_mode is not None and self.trainable:
                 relu = tf.nn.dropout(relu, self.dropout)
-            
             
             if tracking == 1:
                 with tf.name_scope('weights'):
                     variable_summaries(weights)
                 with tf.name_scope('biases'):
                     variable_summaries(biases)
-
-            if batchnorm == 1:
-                return tf.contrib.layers.batch_norm(relu, center=True, scale=True, is_training=train_mode, scope='bn')
-            else:
-                return relu                
-    
+           
+            return relu 
+        
+        
     # ======= Get Var Functions =========== #
         
-    def get_bn_var(self,bottom,name):
-        N, H, W, C = bottom.get_shape().as_list()
+    # def get_bn_var(self, bottom, name):
+    #     N, H, W, C = bottom.get_shape().as_list()
         
-        initial_value = tf.truncated_normal([N, H, W, C], 0.0, 0.01)
-        gamma = self.get_var(initial_value, name, 0, name + "_gamma")
-        del initial_value
+    #     initial_value = tf.truncated_normal([N, H, W, C], 0.0, 0.01)
+    #     gamma = self.get_var(initial_value, name, 0, name + "_gamma")
+    #     #del initial_value
         
-        initial_value = tf.truncated_normal([1, H, W, C], 0.0, 0.01)
-        beta = self.get_var(initial_value, name, 1, name + "_beta")
-        h2 = tf.contrib.layers.batch_norm(h1, center=True, scale=True, is_training=phase, scope='bn')
+    #     initial_value = tf.truncated_normal([1, H, W, C], 0.0, 0.01)
+    #     beta = self.get_var(initial_value, name, 1, name + "_beta")
+    #     h2 = tf.contrib.layers.batch_norm(h1, center=True, scale=True, is_training=phase, scope='bn')
         
-        return gamma, beta
+    #     return gamma, beta
     
-    def get_conv_var(self, filter_size, in_channels, out_channels, name, tracking,fixed):
+    def get_conv_var(self, filter_size, in_channels, out_channels,
+                     name , trainable):
 
         initial_value = tf.truncated_normal([filter_size, filter_size, in_channels, out_channels], 0.0, 0.01)
-        filters = self.get_var(initial_value, name, 0, name + "_filters",fixed)
-        del initial_value
+        filters = self.get_var(initial_value, name, 0, name + "_filters", trainable)
+        #del initial_value
         
         initial_value = tf.truncated_normal([out_channels], 0.0, 0.01)
-        biases = self.get_var(initial_value, name, 1, name + "_biases",fixed)
-        del initial_value
+        biases = self.get_var(initial_value, name, 1, name + "_biases", trainable)
+        #del initial_value
 
         return filters, biases
     
-    def get_deconv_var(self, filter_size, in_channels, out_channels, bias, initialization, name):
+    def get_deconv_var(self, filter_size, in_channels, out_channels, 
+                       bias, initialization,
+                       name, trainable):
 
         #Initializing to bilinear interpolation
         if initialization == 'bilinear':
             C = (2 * filter_size - 1 - (filter_size % 2))/(2*filter_size)
             initial_value = np.zeros([filter_size, filter_size, in_channels, out_channels])
-
             for i in xrange(filter_size):
                 for j in xrange(filter_size):
                     initial_value[i, j] = (1-np.abs(i/(filter_size - C))) * (1-np.abs(j/(filter_size - C)))
             initial_value = tf.convert_to_tensor(initial_value, tf.float32)
+
         else:
             initial_value = tf.truncated_normal([filter_size,filter_size,in_channels,out_channels],0.0,0.01)
 
-        filters = self.get_var(initial_value, name, 0, name + "_filters")
+
+        filters = self.get_var(initial_value, name, 0, name + "_filters", trainable)
         
         biases = None
         if bias:
             initial_value = tf.truncated_normal([out_channels], 0.0, 0.01)
             biases = self.get_var(initial_value, name, 1, name + "_biases")
-        del initial_value
+
+        #del initial_value
         return filters, biases
 
-    def get_fc_var(self, in_size, out_size, name,fixed):
+    def get_fc_var(self, in_size, out_size, 
+                   name, trainable):
         #initialize all other weights with normal distribution with a standard deviation of 0.01
         initial_value = tf.truncated_normal([in_size, out_size], 0.0, 0.01)
-        weights = self.get_var(initial_value, name, 0, name + "_weights")
-        del initial_value
+        weights = self.get_var(initial_value, name, 0, name + "_weights", trainable)
+        #del initial_value
 
         initial_value = tf.truncated_normal([out_size], 0.0, 0.01)
-        biases = self.get_var(initial_value, name, 1, name + "_biases")
-        del initial_value
+        biases = self.get_var(initial_value, name, 1, name + "_biases", trainable)
+        #del initial_value
 
 
         return weights, biases
     
 
     
-    def get_var(self, initial_value, name, idx, var_name,fixed=0):
+    def get_var(self, initial_value, name, idx, var_name, trainable):
         if self.data_dict is not None and name in self.data_dict:
             value = self.data_dict[name][idx]
         else:
             value = initial_value
 
         if self.trainable:
-            var = tf.Variable(value, name=var_name, trainable=fixed)
+            var = tf.Variable(value, name=var_name, trainable=trainable)
 
         else:
             var = tf.constant(value, dtype=tf.float32, name=var_name)
