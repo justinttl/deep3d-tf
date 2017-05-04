@@ -120,11 +120,11 @@ class Deep3Dnet:
 
 
         scale *= 2
-        #issue: we do a deconvolution then an activation, whereas the deep3d does activation then deconvolution
-        self.branch5 = self.deconv_layer(self.fc_RS, 33, 33, scale, 0, 'branch5_upconv', train_mode, tracking=1)
+        self.branch5_1 = tf.nn.relu(self.fc_RS)
+        self.branch5_2 = self.deconv_layer(self.branch5_1, 33, 33, scale, 0, 'branch5_upconv', train_mode, tracking=1, relu=0)
 
         # Combine and x2 Upsample
-        self.up_sum = self.branch1_2 + self.branch2_2 + self.branch3_2 + self.branch4_2 + self.branch5
+        self.up_sum = self.branch1_2 + self.branch2_2 + self.branch3_2 + self.branch4_2 + self.branch5_2
     
         scale = 2
         self.up = self.deconv_layer(self.up_sum, 33, 33, scale, 0, 'up', train_mode, tracking=1,
@@ -184,7 +184,7 @@ class Deep3Dnet:
 
     def deconv_layer(self, bottom, in_channels, out_channels, 
                      scale, bias, name,
-                     train_mode, initialization='default', batchnorm=0, tracking = 0, trainable=1):
+                     train_mode, initialization='default', batchnorm=0, tracking = 0, trainable=1, relu=1):
         
         with tf.variable_scope(name):
             #N, H, W, C = bottom.get_shape().as_list()
@@ -209,8 +209,8 @@ class Deep3Dnet:
 
             if batchnorm == 1:
                  deconv = batch_norm(deconv, train_mode)
-            
-            relu = tf.nn.relu(deconv)
+            if relu:
+                deconv = tf.nn.relu(deconv)
 
             if tracking == 1:
                 with tf.name_scope('filters'):
@@ -219,7 +219,7 @@ class Deep3Dnet:
                     with tf.name_scope('biases'):
                         variable_summaries(biases)
 
-            return relu
+            return deconv
 
     def affine_layer(self, bottom, in_size, out_size, name,
                      train_mode, batchnorm=0, tracking=0, trainable=1):
