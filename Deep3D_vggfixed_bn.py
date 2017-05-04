@@ -82,26 +82,42 @@ class Deep3Dnet:
         self.conv5_4 = self.conv_layer(self.conv5_3, 512, 512, "conv5_4",    train_mode, tracking=1,trainable=0)
         self.pool5 = self.max_pool(self.conv5_4, 'pool5')
 
-        self.pool5_norm = self.batch_norm(self.pool5, train_mode)
-        
         # FC Layers + Relu + Dropout
         self.fc6 = self.affine_layer(self.pool5, 23040, 4096, "fc6",         train_mode, tracking=1) 
         self.fc7 = self.affine_layer(self.fc6, 4096, 4096, "fc7",            train_mode, tracking=1)
-        self.fc8 = self.affine_layer(self.fc7, 4096, 33*9*5, "fc8",          train_mode, tracking=1)
+        self.fc8 = self.affine_layer(self.fc7, 4096, 33*9*5, "fc8",          train_mode, tracking=1, dropout = 1.0)
         
         # Upscaling last branch
         with tf.variable_scope("FC_rs"):
             self.fc_RS = tf.reshape(self.fc8,[-1,5,9,33])
+            
         scale = 16
-        self.up5 = self.deconv_layer(self.fc_RS, 33, 33, scale, 0, 'up5',    train_mode, tracking=1)
+        self.up5 = self.deconv_layer(self.fc_RS, 33, 33, scale, 1, 'up5',    train_mode, tracking=1,
+                                                                             initialization = "bilinear")
+        # Upscale a lower branch
+        scale = 1
+        with tf.variable_scope("pool1_branch"):
+            self.pool1_bn = self.batch_norm(self.pool1, train_mode)
+            self.up1 = self.conv_layer(self.pool1_bn, 64, 33, "up1_conv",    train_mode)
+            self.up1 = self.deconv_layer(self.up1, 33, 33, scale, 1, 'up1',  train_mode, tracking=1,
+                                                                             initialization = "bilinear")
 
+            
+            
+            
+            
+            
+            
+            
+            
+            
         # Combine and x2 Upsample
-        self.up_sum = self.up5
-    
+        self.up_sum = self.up5 + self.up1
+        self.up_sum = tf.nn.relu(self.up_sum)
+                                         
         scale = 2
-        self.up = self.deconv_layer(self.up_sum, 33, 33, scale, 0, 'up',     train_mode, tracking=1, 
-                                    initialization = "bilinear")
-
+        self.up = self.deconv_layer(self.up_sum, 33, 33, scale, 1, 'up',     train_mode, tracking=1, 
+                                                                             initialization = "bilinear")
         self.up_conv = self.conv_layer(self.up, 33, 33, "up_conv",           train_mode, tracking=1)
         
         
@@ -194,7 +210,7 @@ class Deep3Dnet:
             return relu
 
     def affine_layer(self, bottom, in_size, out_size, name,
-                     train_mode, batchnorm=0, tracking=0, trainable=1):
+                     train_mode, batchnorm=0, dropout=0.5, tracking=0, trainable=1):
         with tf.variable_scope(name):
             weights, biases = self.get_fc_var(in_size, out_size, name, trainable)
             x = tf.reshape(bottom, [-1, in_size])
@@ -267,7 +283,7 @@ class Deep3Dnet:
         biases = None
         if bias:
             initial_value = tf.truncated_normal([out_channels], 0.0, 0.01)
-            biases = self.get_var(initial_value, name, 1, name + "_biases")
+            biases = self.get_var(initial_value, name, 1, name + "_biases", trainable)
 
         #del initial_value
         return filters, biases
