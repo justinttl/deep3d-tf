@@ -82,8 +82,9 @@ class Deep3Dnet:
         self.conv5_4 = self.conv_layer(self.conv5_3, 512, 512, "conv5_4",    train_mode, tracking=1,trainable=0)
         self.pool5 = self.max_pool(self.conv5_4, 'pool5')
 
+        self.pool5_norm = self.batch_norm(self.pool5, train_mode)
+        
         # FC Layers + Relu + Dropout
-        # First Dimensions: 23040=((160//(2**5))*(288//(2**5)))*512
         self.fc6 = self.affine_layer(self.pool5, 23040, 4096, "fc6",         train_mode, tracking=1) 
         self.fc7 = self.affine_layer(self.fc6, 4096, 4096, "fc7",            train_mode, tracking=1)
         self.fc8 = self.affine_layer(self.fc7, 4096, 33*9*5, "fc8",          train_mode, tracking=1)
@@ -91,7 +92,6 @@ class Deep3Dnet:
         # Upscaling last branch
         with tf.variable_scope("FC_rs"):
             self.fc_RS = tf.reshape(self.fc8,[-1,5,9,33])
-        
         scale = 16
         self.up5 = self.deconv_layer(self.fc_RS, 33, 33, scale, 0, 'up5',    train_mode, tracking=1)
 
@@ -99,26 +99,26 @@ class Deep3Dnet:
         self.up_sum = self.up5
     
         scale = 2
-        self.up = self.deconv_layer(self.up_sum, 33, 33, scale, 0, 'up',     train_mode, tracking=1)
+        self.up = self.deconv_layer(self.up_sum, 33, 33, scale, 0, 'up',     train_mode, tracking=1, 
+                                    initialization = "bilinear")
+
         self.up_conv = self.conv_layer(self.up, 33, 33, "up_conv",           train_mode, tracking=1)
+        
         
         # Tracking presoftmax activation
         with tf.name_scope('up_conv_act'):
             variable_summaries(self.up_conv)
         
-        
         # Add + Mask + Selection
         with tf.variable_scope("mask_softmax"):
             self.mask = tf.nn.softmax(self.up_conv)
+            self.mask.set_shape([None, 160,288, 33])
 
+        # Tracking Mask  
         with tf.name_scope('mask_act'):
-            variable_summaries(self.up_conv)
+            variable_summaries(self.mask)
         
-
         self.prob  = selection.select(self.mask, rgb)
-
-        with tf.name_scope('prob'):
-            variable_summaries(self.prob)
 
         # Clear out init dictionary
         self.data_dict = None
@@ -128,7 +128,7 @@ class Deep3Dnet:
     def max_pool(self, bottom, name):
         return tf.nn.max_pool(bottom, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME', name=name)
     
-    def batch_norm(self, bottom, train_mode, name='bn'):
+    def batch_norm(self, bottom, train_mode, name='batchnorm'):
         return tf.contrib.layers.batch_norm(bottom, center=True, scale=True, is_training=train_mode, scope=name)
     
 
@@ -159,9 +159,20 @@ class Deep3Dnet:
                      train_mode, initialization='default', batchnorm=0, tracking = 0, trainable=1):
         
         with tf.variable_scope(name):
-            N, H, W, C = bottom.get_shape().as_list()
-            shape_output = [N, scale * (H - 1) + scale * 2 - scale, scale * (W - 1) + scale * 2 - scale, out_channels] 
+            #N, H, W, C = bottom.get_shape().as_list()
+            
+            dyn_input_shape = tf.shape(bottom)
+            N = dyn_input_shape[0]
+            H = dyn_input_shape[1]
+            W = dyn_input_shape[2]
+            C = dyn_input_shape[3]
 
+            shape_output = tf.stack([N, 
+                                     scale * (H - 1) + scale * 2 - scale,
+                                     scale * (W - 1) + scale * 2 - scale,
+                                     out_channels])
+            
+            
             filters, biases = self.get_deconv_var(2*scale, in_channels, out_channels, bias, initialization, name, trainable)
             deconv = tf.nn.conv2d_transpose(bottom, filters, shape_output, [1, scale, scale, 1])
 
