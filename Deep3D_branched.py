@@ -96,26 +96,26 @@ class Deep3Dnet:
 
         #-------branch 1-----
         scale = 1
-        self.bn_pool1 = self.batchnorm(self.pool1, train_mode, name = "branch1_bn")
-        self.branch1_1 = self.conv_layer(self.bn_pool1, 64, 33, "branch1_conv")
+        self.bn_pool1 = self.batch_norm(self.pool1, train_mode, name = "branch1_bn")
+        self.branch1_1 = self.conv_layer(self.bn_pool1, 64, 33, "branch1_conv", train_mode)
         self.branch1_2 = self.deconv_layer(self.branch1_1, 33, 33, scale, 0, 'branch1_upconv', train_mode, tracking=1)
 
         #-------branch 2-----
         scale *= 2
-        self.bn_pool2 = self.batchnorm(self.pool2, train_mode, name="branch2_bn")
-        self.branch2_1 = self.conv_layer(self.bn_pool2, 128, 33, "branch2_conv")
+        self.bn_pool2 = self.batch_norm(self.pool2, train_mode, name="branch2_bn")
+        self.branch2_1 = self.conv_layer(self.bn_pool2, 128, 33, "branch2_conv", train_mode)
         self.branch2_2 = self.deconv_layer(self.branch2_1, 33, 33, scale, 0, 'branch2_upconv', train_mode, tracking=1)
 
         # -------branch 3-----
         scale *= 2
-        self.bn_pool3 = self.batchnorm(self.pool3, train_mode, name="branch3_bn")
-        self.branch3_1 = self.conv_layer(self.bn_pool3, 256, 33, "branch3_conv")
+        self.bn_pool3 = self.batch_norm(self.pool3, train_mode, name="branch3_bn")
+        self.branch3_1 = self.conv_layer(self.bn_pool3, 256, 33, "branch3_conv", train_mode)
         self.branch3_2 = self.deconv_layer(self.branch3_1, 33, 33, scale, 0, 'branch3_upconv', train_mode, tracking=1)
 
         # -------branch 4-----
         scale *= 2
-        self.bn_pool4 = self.batchnorm(self.pool4, train_mode, name="branch4_bn")
-        self.branch4_1 = self.conv_layer(self.bn_pool4, 512, 33, "branch4_conv")
+        self.bn_pool4 = self.batch_norm(self.pool4, train_mode, name="branch4_bn")
+        self.branch4_1 = self.conv_layer(self.bn_pool4, 512, 33, "branch4_conv", train_mode)
         self.branch4_2 = self.deconv_layer(self.branch4_1, 33, 33, scale, 0, 'branch4_upconv', train_mode, tracking=1)
 
 
