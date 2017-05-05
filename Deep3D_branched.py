@@ -277,11 +277,11 @@ class Deep3Dnet:
 
         #Initializing to bilinear interpolation
         if initialization == 'bilinear':
-            C = (2 * filter_size - 1 - (filter_size % 2))/(2*filter_size)
-            initial_value = np.zeros([filter_size, filter_size, in_channels, out_channels])
+            C = (filter_size - 1 - ((filter_size/2) % 2))/(filter_size)
+            initial_value = np.zeros([filter_size, filter_size, 1, 1])
             for i in xrange(filter_size):
                 for j in xrange(filter_size):
-                    initial_value[i, j] = (1-np.abs(i/(filter_size - C))) * (1-np.abs(j/(filter_size - C)))
+                    initial_value[i, j] = (1-np.abs(i/(filter_size/2.0 - C))) * (1-np.abs(j/(filter_size/2.0 - C)
             initial_value = tf.convert_to_tensor(initial_value, tf.float32)
 
         else:
