@@ -32,7 +32,6 @@ class Deep3Dnet:
         self.trainable = trainable
         self.dropout = dropout
 
-
     def build(self, rgb, train_mode=None):
         """
         load variable from npy to build the VGG
@@ -179,23 +178,38 @@ class Deep3Dnet:
             
             if train_mode == True:
                 batch_mean, batch_variance = tf.nn.moments(bottom, keep_dims=True)
-                
-                mean = tf.train.ExponentialMovingAverage(batch_mean, decay=0.9)
-                variance = tf.train.ExponentialMovingAverage(batch_variance, decay=0.9)
-                
-                scale, offset = get_bn_var(bottom, train_mode, name)
-                
-                self.var_dict[(name,idx)] = mean
-                self.var_dict[(name, idx)] = variance
+                ema = tf.train.ExponentialMovingAverage(decay=0.9)
+                maintain_averages_op = self.ema.apply([batch_mean, batch_variance])
                 
                 
-
-            else:
-                mean = get_var(initial_value, name, idx, var_name, trainable)
-                variance = get_var(initial_value, name, idx, var_name, trainable)      
+                mean, variance, scale, offset = get_bn_var(bottom, train_mode, name)                 
 
             return tf.nn.batch_normalization(bottom, mean, variance, offset, scale, variance_epsilon, name=name)
 
+    def get_bn_var(self, bottom, train_mode, name):
+        
+        if train_mode == True:
+            
+            
+            
+            initial_value = tf.train.ExponentialMovingAverage(batch_mean, decay=0.9)
+            mean = get_var(initial_value, name, idx, var_name, trainable)
+            
+            variance = tf.train.ExponentialMovingAverage(batch_variance, decay=0.9)
+            
+            variance = get_var(initial_value, name, idx, var_name, trainable)
+        
+        N, H, W, C = bottom.get_shape().as_list()
+        initial_value = tf.truncated_normal([N, H, W, C], 0.0, 0.01)
+        gamma = self.get_var(initial_value, name, 0, name + "_gamma")
+        
+        initial_value = tf.truncated_normal([1, H, W, C], 0.0, 0.01)
+        beta = self.get_var(initial_value, name, 1, name + "_beta")
+        h2 = tf.contrib.layers.batch_norm(h1, center=True, scale=True, is_training=phase, scope='bn')
+        
+        return mean, variance, gamma, beta
+        
+        
     def conv_layer(self, bottom, in_channels, out_channels, name,
                    train_mode, batchnorm=0, tracking=0, trainable=1):
 
@@ -283,17 +297,7 @@ class Deep3Dnet:
         
     # ======= Get Var Functions =========== #
         
-    def get_bn_var(self, bottom, train_mode, name):
-        
-        N, H, W, C = bottom.get_shape().as_list()
-        initial_value = tf.truncated_normal([N, H, W, C], 0.0, 0.01)
-        gamma = self.get_var(initial_value, name, 0, name + "_gamma")
-        
-        initial_value = tf.truncated_normal([1, H, W, C], 0.0, 0.01)
-        beta = self.get_var(initial_value, name, 1, name + "_beta")
-        h2 = tf.contrib.layers.batch_norm(h1, center=True, scale=True, is_training=phase, scope='bn')
-        
-        return gamma, beta
+
     
     def get_conv_var(self, filter_size, in_channels, out_channels,
                      name , trainable):
