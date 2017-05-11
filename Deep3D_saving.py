@@ -17,11 +17,13 @@ class Deep3Dnet:
         if deep3d_path is not None:
             if os.path.isfile(deep3d_path):
                 self.data_dict = np.load(deep3d_path, encoding='latin1').item()
-            
+                
+                if deep3d_path == './vgg19.npy':
+                    print "ayyy"
                 #removing pre-trained weights for fully connected layers so they'll be re-initialized
-                del self.data_dict[u'fc6']
-                del self.data_dict[u'fc7']
-                del self.data_dict[u'fc8']
+                    del self.data_dict[u'fc6']
+                    del self.data_dict[u'fc7']
+                    del self.data_dict[u'fc8']
             
             else:
                 self.data_dict = None
@@ -37,7 +39,8 @@ class Deep3Dnet:
         load variable from npy to build the VGG
 
         :param rgb: rgb image [batch, height, width, 3] values scaled [0, 1]
-        :param train_mode: a bool tensor, usually a placeholder: if True, dropout will be turned on
+        :param train_mode: a bool tensor, usually a placeholder: if True, dropout will be turned on,
+                                                                 and batchnorm will behave differently
         """
         with tf.variable_scope("Pre_Processing"):
             
@@ -94,41 +97,40 @@ class Deep3Dnet:
 
         #-------branch 1-----
         scale = 1
-        self.bn_pool1 = self.batch_norm(self.pool1, train_mode, name = "branch1_bn")
+        self.bn_pool1 = self.batch_norm(self.pool1, "branch1_bn", train_mode)
         self.branch1_1 = self.conv_layer(self.bn_pool1, 64, 33, "branch1_conv", train_mode)
         self.branch1_2 = self.deconv_layer(self.branch1_1, 33, 33, scale, 0, 'branch1_upconv', train_mode, tracking=1)
 
         #-------branch 2-----
         scale *= 2
-        self.bn_pool2 = self.batch_norm(self.pool2, train_mode, name="branch2_bn")
+        self.bn_pool2 = self.batch_norm(self.pool2, "branch2_bn", train_mode)
         self.branch2_1 = self.conv_layer(self.bn_pool2, 128, 33, "branch2_conv", train_mode)
         self.branch2_2 = self.deconv_layer(self.branch2_1, 33, 33, scale, 0, 'branch2_upconv', train_mode, tracking=1)
 
         # -------branch 3-----
         scale *= 2
-        self.bn_pool3 = self.batch_norm(self.pool3, train_mode, name="branch3_bn")
+        self.bn_pool3 = self.batch_norm(self.pool3, "branch3_bn", train_mode)
         self.branch3_1 = self.conv_layer(self.bn_pool3, 256, 33, "branch3_conv", train_mode)
         self.branch3_2 = self.deconv_layer(self.branch3_1, 33, 33, scale, 0, 'branch3_upconv', train_mode, tracking=1)
 
         # -------branch 4-----
         scale *= 2
-        self.bn_pool4 = self.batch_norm(self.pool4, train_mode, name="branch4_bn")
+        self.bn_pool4 = self.batch_norm(self.pool4, "branch4_bn", train_mode)
         self.branch4_1 = self.conv_layer(self.bn_pool4, 512, 33, "branch4_conv", train_mode)
         self.branch4_2 = self.deconv_layer(self.branch4_1, 33, 33, scale, 0, 'branch4_upconv', train_mode, tracking=1)
-
-
+        
+        # -------branch 5-----
         scale *= 2
         self.branch5_1 = tf.nn.relu(self.fc_RS)
         self.branch5_2 = self.deconv_layer(self.branch5_1, 33, 33, scale, 0, 'branch5_upconv', train_mode, tracking=1, relu=0)
 
         # Combine and x2 Upsample
         self.up_sum = self.branch1_2 + self.branch2_2 + self.branch3_2 + self.branch4_2 + self.branch5_2
-    
         scale = 2
         self.up = self.deconv_layer(self.up_sum, 33, 33, scale, 0, 'up', train_mode, tracking=1)
-
-        self.up_conv = self.conv_layer(self.up, 33, 33, "up_conv", train_mode, tracking=1)
         
+        # Last Conv Layer
+        self.up_conv = self.conv_layer(self.up, 33, 33, "up_conv", train_mode, tracking=1)
         
         # Tracking presoftmax activation
         with tf.name_scope('up_conv_act'):
@@ -154,21 +156,21 @@ class Deep3Dnet:
         return tf.nn.max_pool(bottom, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME', name=name)
 
 
-    def batch_norm(self, bottom, name='batchnorm', train_mode, trainable=1):
-        with tf.varianble_scope(name):
-            mean, variance = tf.nn.moments(bottom, keep_dims=True)                                                                        
-            
-            ema, offset, scale = get_bn_var(bottom, train_mode,name, trainable)  
-            estimated_mean = ema.average(mean)
-            estimated_var  = ema.average(variance)       
+    def batch_norm(self, bottom, name, train_mode, trainable=1):
+        with tf.variable_scope(name):
+            ema = tf.train.ExponentialMovingAverage(decay=0.99)
+            estimated_mean, estimated_var, offset, scale = self.get_bn_var(bottom, train_mode, name, trainable)
             
             def train_bn(): 
-                ema.apply([mean, variance])
+                mean, variance = tf.nn.moments(bottom, [0,1,2], keep_dims=False) 
+                ema_apply = ema.apply([mean, variance])
+                avgmean_assign = tf.assign(estimated_mean, ema.average(mean))
+                avgvar_assign = tf.assign(estimated_var, ema.average(variance))
                 return tf.nn.batch_normalization(bottom, mean, variance, offset, scale, 1e-6, name=name)
                 
-            def test_bn():  tf.nn.batch_normalization(bottom, estimated_mean, estimated_var, 
-                                                      offset, scale, 1e-6, name=name)  
-                
+            def test_bn():  
+                return tf.nn.batch_normalization(bottom, estimated_mean, estimated_var, 
+                                                 offset, scale, 1e-6, name=name)  
             return tf.cond(train_mode, train_bn, test_bn)
         
         
@@ -179,10 +181,7 @@ class Deep3Dnet:
             filters, biases = self.get_conv_var(3, in_channels, out_channels, name, trainable)
             conv = tf.nn.conv2d(bottom, filters, [1, 1, 1, 1], padding='SAME')
             bias = tf.nn.bias_add(conv, biases)
-            
-            if batchnorm == 1:
-                 bias = batch_norm(bias, train_mode)
-            
+
             relu = tf.nn.relu(bias)
 
             if tracking == 1:
@@ -212,15 +211,12 @@ class Deep3Dnet:
                                      scale * (W - 1) + scale * 2 - scale,
                                      out_channels])
             
-            
             filters, biases = self.get_deconv_var(2*scale, in_channels, out_channels, bias, initialization, name, trainable)
             deconv = tf.nn.conv2d_transpose(bottom, filters, shape_output, [1, scale, scale, 1])
 
             if bias: 
                 deconv = tf.nn.bias_add(deconv, biases)
 
-            if batchnorm == 1:
-                 deconv = batch_norm(deconv, train_mode)
             if relu:
                 deconv = tf.nn.relu(deconv)
 
@@ -239,9 +235,6 @@ class Deep3Dnet:
             weights, biases = self.get_fc_var(in_size, out_size, name, trainable)
             x = tf.reshape(bottom, [-1, in_size])
             fc = tf.nn.bias_add(tf.matmul(x, weights), biases)
-            
-            if batchnorm == 1:
-                fc = batch_norm(fc, train_mode)
         
             relu = tf.nn.relu(fc)
             
@@ -261,17 +254,19 @@ class Deep3Dnet:
     def get_bn_var(self, bottom, train_mode, name, trainable):                             
         N, H, W, C = bottom.get_shape().as_list()
         
-        initial_value = tf.one([C])
+        initial_value = tf.ones([C])
         scale = self.get_var(initial_value, name, 0, name + "_scale", trainable)
         
         initial_value = tf.zeros([C])
         offset = self.get_var(initial_value, name, 1, name + "_offset", trainable)
         
-        ema = tf.train.ExponentialMovingAverage(decay=0.99)
-        intial_value = ema.variables_to_restore()
-        ema = self.get_var(initial_value, name, 2, name + "_ema", trainable)
+        initial_value = tf.zeros([C])
+        estimated_mean = self.get_var(initial_value, name, 2, name + "_estmean", trainable)
         
-        return ema, offset, scale
+        initial_value = tf.ones([C])
+        estimated_var = self.get_var(initial_value, name, 3, name + "_estvar", trainable)
+  
+        return estimated_mean, estimated_var, offset, scale
 
     
     def get_conv_var(self, filter_size, in_channels, out_channels,
@@ -370,11 +365,8 @@ class Deep3Dnet:
             count += reduce(lambda x, y: x * y, v.get_shape().as_list())
         return count
 
-def variable_summaries(var):
-    """Attach a lot of summaries to a Tensor (for TensorBoard visualization).
-    https://www.tensorflow.org/get_started/summaries_and_tensorboard
-    """
     
+def variable_summaries(var):
     with tf.name_scope('summaries'):
         mean = tf.reduce_mean(var)
         tf.summary.scalar('mean', mean)
