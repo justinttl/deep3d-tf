@@ -158,20 +158,25 @@ class Deep3Dnet:
 
     def batch_norm(self, bottom, name, train_mode, trainable=1):
         with tf.variable_scope(name):
-            ema = tf.train.ExponentialMovingAverage(decay=0.99)
-            estimated_mean, estimated_var, offset, scale = self.get_bn_var(bottom, train_mode, name, trainable)
+            mean, variance = tf.nn.moments(bottom, [0,1,2], keep_dims=False)   
             
-            def train_bn(): 
-                mean, variance = tf.nn.moments(bottom, [0,1,2], keep_dims=False) 
-                ema_apply = ema.apply([mean, variance])
-                avgmean_assign = tf.assign(estimated_mean, ema.average(mean))
-                avgvar_assign = tf.assign(estimated_var, ema.average(variance))
-                return tf.nn.batch_normalization(bottom, mean, variance, offset, scale, 1e-6, name=name)
-                
-            def test_bn():  
-                return tf.nn.batch_normalization(bottom, estimated_mean, estimated_var, 
-                                                 offset, scale, 1e-6, name=name)  
-            return tf.cond(train_mode, train_bn, test_bn)
+            decay = 0.99
+            prev_mean, prev_var, offset, scale = self.get_bn_var(bottom, train_mode, name, trainable)
+            new_mean = (1-decay)*mean + decay*prev_mean
+            new_var = (1-decay)*variance + decay*prev_var
+            
+            ema_mean = tf.cond(train_mode, lambda: new_mean, lambda: prev_mean)
+            ema_var = tf.cond(train_mode, lambda: new_var, lambda: prev_var)
+            
+            assign_pmean_op = prev_mean.assign(ema_mean)
+            assign_pvar_op = prev_var.assign(ema_var)
+            
+            with tf.control_dependencies([assign_pmean_op]):
+                curr_mean = tf.identity(prev_mean)
+            with tf.control_dependencies([assign_pvar_op]):
+                curr_var = tf.identity(prev_var)
+            
+            return  tf.nn.batch_normalization(bottom, curr_mean, curr_var, offset, scale, 1e-6, name=name)
         
         
     def conv_layer(self, bottom, in_channels, out_channels, name,
