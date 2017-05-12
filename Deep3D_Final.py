@@ -62,30 +62,30 @@ class Deep3Dnet:
             assert bgr.get_shape().as_list()[1:] == [160, 288, 3]
 
         # Convolution Stages
-        self.conv1_1 = self.conv_layer(bgr, 3, 64, "conv1_1",                train_mode, trainable=0)
-        self.conv1_2 = self.conv_layer(self.conv1_1, 64, 64, "conv1_2",      train_mode, tracking=1,trainable=0)
+        self.conv1_1 = self.conv_layer(bgr, 3, 64, "conv1_1",                train_mode, trainable=1)
+        self.conv1_2 = self.conv_layer(self.conv1_1, 64, 64, "conv1_2",      train_mode, tracking=1,trainable=1)
         self.pool1 = self.max_pool(self.conv1_2, 'pool1')
 
-        self.conv2_1 = self.conv_layer(self.pool1, 64, 128, "conv2_1",       train_mode,trainable=0)
-        self.conv2_2 = self.conv_layer(self.conv2_1, 128, 128, "conv2_2",    train_mode, tracking=1,trainable=0)
+        self.conv2_1 = self.conv_layer(self.pool1, 64, 128, "conv2_1",       train_mode,trainable=1)
+        self.conv2_2 = self.conv_layer(self.conv2_1, 128, 128, "conv2_2",    train_mode, tracking=1,trainable=1)
         self.pool2 = self.max_pool(self.conv2_2, 'pool2')
 
-        self.conv3_1 = self.conv_layer(self.pool2, 128, 256, "conv3_1",      train_mode,trainable=0)
-        self.conv3_2 = self.conv_layer(self.conv3_1, 256, 256, "conv3_2",    train_mode,trainable=0)
-        self.conv3_3 = self.conv_layer(self.conv3_2, 256, 256, "conv3_3",    train_mode,trainable=0)
-        self.conv3_4 = self.conv_layer(self.conv3_3, 256, 256, "conv3_4",    train_mode, tracking=1,trainable=0)
+        self.conv3_1 = self.conv_layer(self.pool2, 128, 256, "conv3_1",      train_mode,trainable=1)
+        self.conv3_2 = self.conv_layer(self.conv3_1, 256, 256, "conv3_2",    train_mode,trainable=1)
+        self.conv3_3 = self.conv_layer(self.conv3_2, 256, 256, "conv3_3",    train_mode,trainable=1)
+        self.conv3_4 = self.conv_layer(self.conv3_3, 256, 256, "conv3_4",    train_mode, tracking=1,trainable=1)
         self.pool3 = self.max_pool(self.conv3_4, 'pool3')
 
-        self.conv4_1 = self.conv_layer(self.pool3, 256, 512, "conv4_1",      train_mode,trainable=0)
-        self.conv4_2 = self.conv_layer(self.conv4_1, 512, 512, "conv4_2",    train_mode,trainable=0)
-        self.conv4_3 = self.conv_layer(self.conv4_2, 512, 512, "conv4_3",    train_mode,trainable=0)
-        self.conv4_4 = self.conv_layer(self.conv4_3, 512, 512, "conv4_4",    train_mode, tracking=1,trainable=0)
+        self.conv4_1 = self.conv_layer(self.pool3, 256, 512, "conv4_1",      train_mode,trainable=1)
+        self.conv4_2 = self.conv_layer(self.conv4_1, 512, 512, "conv4_2",    train_mode,trainable=1)
+        self.conv4_3 = self.conv_layer(self.conv4_2, 512, 512, "conv4_3",    train_mode,trainable=1)
+        self.conv4_4 = self.conv_layer(self.conv4_3, 512, 512, "conv4_4",    train_mode, tracking=1,trainable=1)
         self.pool4 = self.max_pool(self.conv4_4, 'pool4')
 
-        self.conv5_1 = self.conv_layer(self.pool4, 512, 512, "conv5_1",      train_mode, trainable=0)
-        self.conv5_2 = self.conv_layer(self.conv5_1, 512, 512, "conv5_2",    train_mode, trainable=0)
-        self.conv5_3 = self.conv_layer(self.conv5_2, 512, 512, "conv5_3",    train_mode, trainable=0)
-        self.conv5_4 = self.conv_layer(self.conv5_3, 512, 512, "conv5_4",    train_mode, tracking=1,trainable=0)
+        self.conv5_1 = self.conv_layer(self.pool4, 512, 512, "conv5_1",      train_mode, trainable=1)
+        self.conv5_2 = self.conv_layer(self.conv5_1, 512, 512, "conv5_2",    train_mode, trainable=1)
+        self.conv5_3 = self.conv_layer(self.conv5_2, 512, 512, "conv5_3",    train_mode, trainable=1)
+        self.conv5_4 = self.conv_layer(self.conv5_3, 512, 512, "conv5_4",    train_mode, tracking=1,trainable=1)
         self.pool5 = self.max_pool(self.conv5_4, 'pool5')
         
         # FC Layers + Relu + Dropout
@@ -161,9 +161,10 @@ class Deep3Dnet:
 
     def batch_norm(self, bottom, name, train_mode, trainable=1):
         with tf.variable_scope(name):
+            
             mean, variance = tf.nn.moments(bottom, [0,1,2], keep_dims=False)   
             
-            decay = 0.8
+            decay = 0.6
             prev_mean, prev_var, offset, scale = self.get_bn_var(bottom, train_mode, name, trainable)
             new_mean = (1-decay)*mean + decay*prev_mean
             new_var = (1-decay)*variance + decay*prev_var
@@ -175,10 +176,10 @@ class Deep3Dnet:
             assign_pvar_op = prev_var.assign(ema_var)
             
             with tf.control_dependencies([assign_pmean_op]):
-                curr_mean = tf.identity(prev_mean)
+                curr_mean = tf.identity(tf.cond(train_mode, lambda: mean, lambda: prev_mean))
             with tf.control_dependencies([assign_pvar_op]):
-                curr_var = tf.identity(prev_var)
-            
+                curr_var = tf.identity(tf.cond(train_mode, lambda: variance, lambda: prev_var))         
+          
             return  tf.nn.batch_normalization(bottom, curr_mean, curr_var, offset, scale, 1e-6, name=name)
         
         
