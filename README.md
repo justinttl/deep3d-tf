@@ -2,6 +2,7 @@
 
 This is a Tensorflow implemention of Deep3D (The original MXNet implementation can be found in the github repository: <a href="https://github.com/piiswrong/deep3d">Deep3D-MXNet</a>. The <a href="https://arxiv.org/abs/1604.03650">published paper</a> describes the development and performance of this network. 
 
+The backbone of this network is built from the github repository of an <a href="https://github.com/machrisaa/tensorflow-vgg">implementation of VGG19</a>.
 
 We have modified the implementation of <a href="https://github.com/ry/tensorflow-vgg16">tensorflow-vgg19</a> to use numpy loading instead of default tensorflow model loading in order to speed up the initialisation and reduce the overall memory usage. This implementation enable further modify the network, e.g. remove the FC layers, or increase the batch size.
 
