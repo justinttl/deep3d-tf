@@ -1,8 +1,9 @@
 # Tensorflow VGG16 and VGG19
 
-This is a Tensorflow implemention of VGG 16 and VGG 19 based on [tensorflow-vgg16](https://github.com/ry/tensorflow-vgg16) and [Caffe to Tensorflow](https://github.com/ethereon/caffe-tensorflow). Original Caffe implementation can be found in [here](https://gist.github.com/ksimonyan/211839e770f7b538e2d8) and [here](https://gist.github.com/ksimonyan/3785162f95cd2d5fee77).
+This is a Tensorflow implemention of Deep3D (The original MXNet implementation can be found in the github repository: <a href="https://github.com/piiswrong/deep3d">Deep3D-MXNet</a>. The <a href="https://arxiv.org/abs/1604.03650">published paper</a> describes the development and performance of this network. 
 
-We have modified the implementation of <a href="https://github.com/ry/tensorflow-vgg16">tensorflow-vgg16</a> to use numpy loading instead of default tensorflow model loading in order to speed up the initialisation and reduce the overall memory usage. This implementation enable further modify the network, e.g. remove the FC layers, or increase the batch size.
+
+We have modified the implementation of <a href="https://github.com/ry/tensorflow-vgg16">tensorflow-vgg19</a> to use numpy loading instead of default tensorflow model loading in order to speed up the initialisation and reduce the overall memory usage. This implementation enable further modify the network, e.g. remove the FC layers, or increase the batch size.
 
 >To use the VGG networks, the npy files for [VGG16 NPY](https://mega.nz/#!YU1FWJrA!O1ywiCS2IiOlUCtCpI6HTJOMrneN-Qdv3ywQP5poecM) or [VGG19 NPY](https://mega.nz/#!xZ8glS6J!MAnE91ND_WyfZ_8mvkuSa2YcA7q-1ehfSm-Q1fxOvvs) has to be downloaded.
 
