@@ -6,6 +6,6 @@ This is a Tensorflow implemention of Deep3D (The original MXNet implementation c
 
 The backbone of this network is built from the github repository of an <a href="https://github.com/machrisaa/tensorflow-vgg">implementation of VGG19</a>.
 
-# Some Results!
+## Some Results
  ![](https://github.com/jhoh10/Deep3D_Tensorflow/blob/master/viz/dancegirl.gif)
  
