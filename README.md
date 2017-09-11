@@ -1,7 +1,11 @@
 # Tensorflow Deep3D
-This is a Tensorflow implemention of Deep3D (The original MXNet implementation can be found in the github repository: <a href="https://github.com/piiswrong/deep3d">Deep3D-MXNet</a>. The <a href="https://arxiv.org/abs/1604.03650">published paper</a> describes the development and performance of this network. 
+This is a Tensorflow implemention of Deep3D (The original MXNet implementation can be found in the github repository: <a href="https://github.com/piiswrong/deep3d">Deep3D-MXNet</a>. The <a href="https://arxiv.org/abs/1604.03650">published paper</a> describes the development and performance of the original network. There is a lot of work to be done for this ported model! 
+* Refactor and port over NumPy weights to Tensorflow loading methods
+* Add training persistance
+* Train WAY longer on hollywood Dataset
+* Explore TensorServe API for web hosting + experiment with Ruby API
 
-**Presentation Slides:**  https://goo.gl/iijL3X
+**Presentation Slides:**  https://goo.gl/iijL 
 
 <img src="https://github.com/JustinTTL/Deep3D_Tensorflow/blob/master/viz/graph_run.png" width="700">
 
