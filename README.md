@@ -5,7 +5,7 @@ This is a Tensorflow implemention of Deep3D (The original MXNet implementation c
 * Train WAY longer on hollywood Dataset
 * Explore TensorServe API for web hosting + experiment with Ruby API
 
-**Presentation Slides:**  https://goo.gl/iijL 
+**Presentation Slides:**  https://goo.gl/iijL3X
 
 <img src="https://github.com/JustinTTL/Deep3D_Tensorflow/blob/master/viz/graph_run.png" width="700">
 
