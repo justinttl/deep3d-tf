@@ -7,14 +7,14 @@ This is a Tensorflow implemention of Deep3D (The original MXNet implementation c
 
 **Presentation Slides:**  https://goo.gl/iijL3X
 
-<img src="https://github.com/JustinTTL/Deep3D_Tensorflow/blob/master/viz/graph_run.png" width="700">
+<img src="https://github.com/JustinTTL/Deep3D_TF/blob/master/viz/graph_run.png" width="700">
 
 The backbone of this network is built from the github repository of an <a href="https://github.com/machrisaa/tensorflow-vgg">implementation of VGG19</a>.
 
 ## Some Results
-<img src="https://github.com/JustinTTL/Deep3D_Tensorflow/blob/master/viz/dancegirl.gif" width="700">
-<img src="https://github.com/JustinTTL/Deep3D_Tensorflow/blob/master/viz/horse.png" width="700">
-<img src="https://github.com/JustinTTL/Deep3D_Tensorflow/blob/master/viz/depth.gif" width="700">
-<img src="https://github.com/JustinTTL/Deep3D_Tensorflow/blob/master/viz/frodo.gif" width="700">
+<img src="https://github.com/JustinTTL/Deep3D_TF/blob/master/viz/dancegirl.gif" width="700">
+<img src="https://github.com/JustinTTL/Deep3D_TF/blob/master/viz/horse.png" width="700">
+<img src="https://github.com/JustinTTL/Deep3D_TF/blob/master/viz/depth.gif" width="700">
+<img src="https://github.com/JustinTTL/Deep3D_TF/blob/master/viz/frodo.gif" width="700">
 
  
